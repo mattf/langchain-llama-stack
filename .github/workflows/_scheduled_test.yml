@@ -1,0 +1,63 @@
+name: Scheduled tests
+run-name: langchain-llama-stack Scheduled tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '0 8 * * *'
+
+env:
+  POETRY_VERSION: "1.7.1"
+
+jobs:
+  build:
+    name: Python ${{ matrix.python-version }} - ${{ matrix.working-directory }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.13"
+        working-directory:
+          - "."
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python + Poetry ${{ env.POETRY_VERSION }}
+        uses: "./.github/actions/poetry_setup"
+        with:
+          python-version: ${{ matrix.python-version }}
+          poetry-version: ${{ env.POETRY_VERSION }}
+          working-directory: ${{ matrix.working-directory }}
+          cache-key: scheduled
+
+      - name: Install dependencies
+        run: poetry install --with test,test_integration
+        working-directory: ${{ matrix.working-directory }}
+
+      - name: Run unit tests
+        run: make tests
+        working-directory: ${{ matrix.working-directory }}
+
+      # TODO(mf): get a Llama Stack distro to run integration tests
+      # - name: Run integration tests
+      #   env:
+      #     LLAMA_STACK_API_KEY: ${{ secrets.LLAMA_STACK_API_KEY }}
+      #     LLAMA_STACK_BASE_URL: ${{ secrets.LLAMA_STACK_BASE_URL }}
+      #   run: make integration_tests
+      #   working-directory: ${{ matrix.working-directory }}
+
+
+      - name: Ensure the tests did not create any additional files
+        working-directory: ${{ matrix.working-directory }}
+        run: |
+          set -eu
+
+          STATUS="$(git status)"
+          echo "$STATUS"
+
+          # grep will exit non-zero if the target message isn't found,
+          # and `set -e` above will cause the step to fail.
+          echo "$STATUS" | grep 'nothing to commit, working tree clean'
