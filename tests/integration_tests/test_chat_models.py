@@ -29,3 +29,9 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
     @pytest.mark.xfail(reason="Produces full output, not chunks")
     async def test_astream(self, model: BaseChatModel) -> None:
         await self.test_astream(model)
+
+    # TODO(mf): re-enable when we can extend the test suite
+    # def test_logprobs(self, model: BaseChatModel) -> None:
+    #     logprobs_llm = model.bind(logprobs=True)
+    #     ai_msg = logprobs_llm.invoke("Hello, how are you?")
+    #     assert "logprobs" in ai_msg.response_metadata, "logprobs not present"

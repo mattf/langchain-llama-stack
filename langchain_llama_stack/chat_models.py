@@ -16,6 +16,9 @@ from llama_stack_client import NOT_GIVEN, Client
 from llama_stack_client.types import (
     ChatCompletionResponse,
 )
+from llama_stack_client.types.inference_completion_params import (
+    Logprobs as LlamaStackLogprobs,
+)
 from llama_stack_client.types.shared_params import (
     SamplingParams,
 )
@@ -223,16 +226,22 @@ class ChatLlamaStack(BaseChatModel):
 
             {'input_tokens': 28, 'output_tokens': 5, 'total_tokens': 33}
 
-    Logprobs:  TODO(mf): add support for logprobs
+    Logprobs:
         .. code-block:: python
 
-            logprobs_llm = llm.bind(logprobs=True)
+            logprobs_llm = llm.bind(logprobs=True)  # or logprobs=3 for top 3
             ai_msg = logprobs_llm.invoke(messages)
             ai_msg.response_metadata["logprobs"]
 
         .. code-block:: python
 
-              # TODO: Example output.
+            [{'"': -2.4698164463043213},
+             {'J': -0.31870245933532715},
+             {"'": -0.15102243423461914},
+             {'ad': -0.004451931454241276},
+             {'ore': -0.0009182137437164783},
+             {' programmer': -1.1367093324661255},
+             {'."': -0.14114761352539062}]
 
     Response metadata
         .. code-block:: python
@@ -325,6 +334,7 @@ class ChatLlamaStack(BaseChatModel):
         messages: List[BaseMessage],
         stop: Optional[List[str]] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
+        logprobs: Optional[bool | int] = None,
         **kwargs: Any,
     ) -> ChatResult:
         """
@@ -351,6 +361,7 @@ class ChatLlamaStack(BaseChatModel):
             model_id=self.model_name,
             messages=[convert_message(message) for message in messages],
             sampling_params=sampling_params if sampling_params else NOT_GIVEN,
+            logprobs=LlamaStackLogprobs(top_k=logprobs) if logprobs else NOT_GIVEN,
         )
 
         return convert_response(response)

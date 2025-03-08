@@ -145,17 +145,22 @@ def convert_response(response: ChatCompletionResponse) -> ChatResult:
             for item in response.completion_message.content
         ]
 
+    response_metadata: dict[str, Any] = {
+        "stop_reason": response.completion_message.stop_reason,
+    }
+    if response.logprobs:
+        response_metadata["logprobs"] = [
+            token.logprobs_by_token for token in response.logprobs
+        ]
+
     return ChatResult(
         generations=[
             ChatGeneration(
                 message=AIMessage(
                     content=content,
-                    response_metadata={
-                        "stop_reason": response.completion_message.stop_reason,
-                    },
+                    response_metadata=response_metadata,
                     # TODO(md): add tool_calls
                     # TODO(mf): add usage_metadata
-                    # TODO(mf): add logprobs
                 )
             )
         ]
