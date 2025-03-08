@@ -295,30 +295,14 @@ class ChatLlamaStack(BaseChatModel):
             "model_name": self.model_name,
         }
 
-    def _generate(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        **kwargs: Any,
-    ) -> ChatResult:
-        """Override the _generate method to implement the chat model logic.
-
-        This can be a call to an API, a call to a local model, or any other
-        implementation that generates a response to the input prompt.
-
-        Args:
-            messages: the prompt composed of a list of messages.
-            stop: this parameter is not supported
-            run_manager: A run manager with callbacks for the LLM.
+    def _get_sampling_params(
+        self, **kwargs: Any
+    ) -> tuple[Optional[SamplingParams], Any]:
         """
-        assert self.client is not None, "client not initialized"  # satisfy mypy
+        Get the sampling parameters.
 
-        if stop:
-            logging.warning(
-                "ignoring stop words, not supported by Llama Stack Inference API"
-            )
-
+        TODO(mf): allow kwargs to override the model's settings
+        """
         sampling_params: SamplingParams | None = None
         if self.max_tokens is not None or self.temperature is not None:
             sampling_params = SamplingParams(
@@ -334,6 +318,31 @@ class ChatLlamaStack(BaseChatModel):
                     type="top_p",
                     temperature=self.temperature,
                 )
+        return sampling_params, kwargs
+
+    def _generate(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        """
+        Generate a response to the input messages.
+
+        Args:
+            messages: the prompt composed of a list of messages.
+            stop: this parameter is not supported
+            run_manager: A run manager with callbacks for the LLM.
+        """
+        assert self.client is not None, "client not initialized"  # satisfy mypy
+
+        if stop:
+            logging.warning(
+                "ignoring stop words, not supported by Llama Stack Inference API"
+            )
+
+        sampling_params, kwargs = self._get_sampling_params(**kwargs)
 
         if kwargs:
             logging.warning(f"ignoring extra kwargs: {kwargs}")
