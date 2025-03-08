@@ -1,6 +1,6 @@
 # langchain-llama-stack
 
-This package contains the LangChain integration with LlamaStack
+This package contains the LangChain integration with [Llama Stack](https://github.com/meta-llama/llama-stack).
 
 ## Installation
 
@@ -8,38 +8,17 @@ This package contains the LangChain integration with LlamaStack
 pip install -U langchain-llama-stack
 ```
 
-And you should configure credentials by setting the following environment variables:
+If your Llama Stack distribution requires credentials, use the `LLAMA_STACK_API_KEY` environment variable.
 
-* TODO: fill this out
+If your Llama Stack distribution server is not running on `http://localhost:8321`, use the `LLAMA_STACK_BASE_URL` environment variable.
 
 ## Chat Models
 
-`ChatLlamaStack` class exposes chat models from LlamaStack.
+`ChatLlamaStack` class exposes chat models, which are hosted at `/v1/inference/chat-completion` on your Llama Stack distribution server.
 
 ```python
 from langchain_llama_stack import ChatLlamaStack
 
-llm = ChatLlamaStack()
+llm = ChatLlamaStack(model="meta/llama-3.1-8b-instruct")
 llm.invoke("Sing a ballad of LangChain.")
-```
-
-## Embeddings
-
-`LlamaStackEmbeddings` class exposes embeddings from LlamaStack.
-
-```python
-from langchain_llama_stack import LlamaStackEmbeddings
-
-embeddings = LlamaStackEmbeddings()
-embeddings.embed_query("What is the meaning of life?")
-```
-
-## LLMs
-`LlamaStackLLM` class exposes LLMs from LlamaStack.
-
-```python
-from langchain_llama_stack import LlamaStackLLM
-
-llm = LlamaStackLLM()
-llm.invoke("The meaning of life is")
 ```

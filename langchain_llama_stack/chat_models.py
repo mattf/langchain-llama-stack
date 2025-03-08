@@ -1,70 +1,81 @@
-"""LlamaStack chat models."""
+"""Llama Stack chat models."""
 
-from typing import Any, Dict, Iterator, List, Optional
+import logging
+from typing import Any, List, Optional
 
+import httpx
 from langchain_core.callbacks import (
     CallbackManagerForLLMRun,
 )
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
-    AIMessage,
-    AIMessageChunk,
     BaseMessage,
 )
-from langchain_core.messages.ai import UsageMetadata
-from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
-from pydantic import Field
+from langchain_core.outputs import ChatResult
+from llama_stack_client import NOT_GIVEN, Client
+from llama_stack_client.types import (
+    ChatCompletionResponse,
+)
+from llama_stack_client.types.shared_params import (
+    SamplingParams,
+)
+from llama_stack_client.types.shared_params.sampling_params import (
+    StrategyGreedySamplingStrategy,
+    StrategyTopPSamplingStrategy,
+)
+from pydantic import Field, SecretStr, model_validator
+
+from langchain_llama_stack._utils import convert_message, convert_response
+
+logger = logging.getLogger(__name__)
 
 
 class ChatLlamaStack(BaseChatModel):
-    # TODO: Replace all TODOs in docstring. See example docstring:
-    # https://github.com/langchain-ai/langchain/blob/7ff05357bac6eaedf5058a2af88f23a1817d40fe/libs/partners/openai/langchain_openai/chat_models/base.py#L1120
-    """LlamaStack chat model integration.
+    """
+    Llama Stack chat model integration.
 
-    The default implementation echoes the first `parrot_buffer_length` characters of the input.
-
-    # TODO: Replace with relevant packages, env vars.
     Setup:
-        Install ``langchain-llama-stack`` and set environment variable ``LLAMASTACK_API_KEY``.
+        Install ``langchain-llama-stack`` and set optional environment variable ``LLAMA_STACK_API_KEY`` or ``LLAMA_STACK_BASE_URL``.
 
         .. code-block:: bash
 
             pip install -U langchain-llama-stack
-            export LLAMASTACK_API_KEY="your-api-key"
+            export LLAMA_STACK_API_KEY="your-api-key"
+            export LLAMA_STACK_BASE_URL="http://my-llama-stack-disto:8321
 
-    # TODO: Populate with relevant params.
     Key init args — completion params:
         model: str
-            Name of LlamaStack model to use.
+            Name of model to use.
         temperature: float
             Sampling temperature.
         max_tokens: Optional[int]
             Max number of tokens to generate.
 
-    # TODO: Populate with relevant params.
     Key init args — client params:
+        base_url: Optional[str]
+            If not passed in will be read from env var LLAMA_STACK_BASE_URL.
+        api_key: Optional[str]
+            If not passed in will be read from env var LLAMA_STACK_API_KEY.
         timeout: Optional[float]
             Timeout for requests.
         max_retries: int
             Max number of retries.
-        api_key: Optional[str]
-            LlamaStack API key. If not passed in will be read from env var LLAMASTACK_API_KEY.
 
     See full list of supported init args and their descriptions in the params section.
 
-    # TODO: Replace with relevant init params.
     Instantiate:
         .. code-block:: python
 
             from langchain_llama_stack import ChatLlamaStack
 
             llm = ChatLlamaStack(
+                base_url="...",
+                api_key="...",
                 model="...",
                 temperature=0,
                 max_tokens=None,
                 timeout=None,
                 max_retries=2,
-                # api_key="...",
                 # other params...
             )
 
@@ -79,9 +90,8 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-            # TODO: Example output.
+            AIMessage(content='"J\'adore programmer."', additional_kwargs={}, response_metadata={'stop_reason': 'end_of_turn'}, id='run-561341ff-ac7f-41fa-bc61-13dc1c9a2ec3-0')
 
-    # TODO: Delete if token-level streaming isn't supported.
     Stream:
         .. code-block:: python
 
@@ -104,7 +114,6 @@ class ChatLlamaStack(BaseChatModel):
 
             # TODO: Example output.
 
-    # TODO: Delete if native async isn't supported.
     Async:
         .. code-block:: python
 
@@ -118,10 +127,9 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-            # TODO: Example output.
+            AIMessage(content='"J\'adore programmer."', additional_kwargs={}, response_metadata={'stop_reason': 'end_of_turn'}, id='run-fe11469c-bc41-4086-85fb-80c37a9d7efe-0')
 
-    # TODO: Delete if .bind_tools() isn't supported.
-    Tool calling:
+    Tool calling:  TODO(mf): add support for bind_tools
         .. code-block:: python
 
             from pydantic import BaseModel, Field
@@ -146,8 +154,7 @@ class ChatLlamaStack(BaseChatModel):
 
         See ``ChatLlamaStack.bind_tools()`` method for more.
 
-    # TODO: Delete if .with_structured_output() isn't supported.
-    Structured output:
+    Structured output:  TODO(mf): add support for structured output
         .. code-block:: python
 
             from typing import Optional
@@ -170,11 +177,9 @@ class ChatLlamaStack(BaseChatModel):
 
         See ``ChatLlamaStack.with_structured_output()`` for more.
 
-    # TODO: Delete if JSON mode response format isn't supported.
-    JSON mode:
+    JSON mode:  TODO(mf): add support for JSON mode
         .. code-block:: python
 
-            # TODO: Replace with appropriate bind arg.
             json_llm = llm.bind(response_format={"type": "json_object"})
             ai_msg = json_llm.invoke("Return a JSON object with key 'random_ints' and a value of 10 random ints in [0-99]")
             ai_msg.content
@@ -183,8 +188,7 @@ class ChatLlamaStack(BaseChatModel):
 
             # TODO: Example output.
 
-    # TODO: Delete if image inputs aren't supported.
-    Image input:
+    Image input:  TODO(mf): add support for image inputs
         .. code-block:: python
 
             import base64
@@ -193,7 +197,6 @@ class ChatLlamaStack(BaseChatModel):
 
             image_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"
             image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
-            # TODO: Replace with appropriate message content format.
             message = HumanMessage(
                 content=[
                     {"type": "text", "text": "describe the weather in this image"},
@@ -210,28 +213,7 @@ class ChatLlamaStack(BaseChatModel):
 
             # TODO: Example output.
 
-    # TODO: Delete if audio inputs aren't supported.
-    Audio input:
-        .. code-block:: python
-
-            # TODO: Example input
-
-        .. code-block:: python
-
-            # TODO: Example output
-
-    # TODO: Delete if video inputs aren't supported.
-    Video input:
-        .. code-block:: python
-
-            # TODO: Example input
-
-        .. code-block:: python
-
-            # TODO: Example output
-
-    # TODO: Delete if token usage metadata isn't supported.
-    Token usage:
+    Token usage:  TODO(mf): add support for token usage metadata
         .. code-block:: python
 
             ai_msg = llm.invoke(messages)
@@ -241,11 +223,9 @@ class ChatLlamaStack(BaseChatModel):
 
             {'input_tokens': 28, 'output_tokens': 5, 'total_tokens': 33}
 
-    # TODO: Delete if logprobs aren't supported.
-    Logprobs:
+    Logprobs:  TODO(mf): add support for logprobs
         .. code-block:: python
 
-            # TODO: Replace with appropriate bind arg.
             logprobs_llm = llm.bind(logprobs=True)
             ai_msg = logprobs_llm.invoke(messages)
             ai_msg.response_metadata["logprobs"]
@@ -262,19 +242,38 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-             # TODO: Example output.
+            {'stop_reason': 'end_of_turn'}
 
     """  # noqa: E501
 
     model_name: str = Field(alias="model")
     """The name of the model"""
-    parrot_buffer_length: int
-    """The number of characters from the last message of the prompt to be echoed."""
+    base_url: str | httpx.URL | None = None
+    "Loaded from LLAMA_STACK_BASE_URL environment variable if not provided."
+    api_key: SecretStr | None = None
+    "Loaded from LLAMA_STACK_API_KEY environment variable if not provided."
     temperature: Optional[float] = None
     max_tokens: Optional[int] = None
     timeout: Optional[int] = None
-    stop: Optional[List[str]] = None
-    max_retries: int = 2
+    max_retries: Optional[int] = None
+
+    disable_streaming: bool = True  # TODO(mf): add streaming support
+
+    client: Client | None = Field(default=None, exclude=True)
+    """Internal Llama Stack client"""
+
+    @model_validator(mode="after")
+    def _initialize_client(self) -> "ChatLlamaStack":
+        """Initialize the Llama Stack client with configuration parameters."""
+        params: dict[str, Any] = {
+            "base_url": self.base_url,
+            "api_key": self.api_key.get_secret_value() if self.api_key else None,
+            "timeout": self.timeout,
+            "max_retries": self.max_retries,
+        }
+        params = {k: v for k, v in params.items() if v is not None}
+        self.client = Client(**params)
+        return self
 
     @property
     def _llm_type(self) -> str:
@@ -282,7 +281,7 @@ class ChatLlamaStack(BaseChatModel):
         return "chat-llama-stack"
 
     @property
-    def _identifying_params(self) -> Dict[str, Any]:
+    def _identifying_params(self) -> dict[str, Any]:
         """Return a dictionary of identifying parameters.
 
         This information is used by the LangChain callback system, which
@@ -310,96 +309,53 @@ class ChatLlamaStack(BaseChatModel):
 
         Args:
             messages: the prompt composed of a list of messages.
-            stop: a list of strings on which the model should stop generating.
-                  If generation stops due to a stop token, the stop token itself
-                  SHOULD BE INCLUDED as part of the output. This is not enforced
-                  across models right now, but it's a good practice to follow since
-                  it makes it much easier to parse the output of the model
-                  downstream and understand why generation stopped.
+            stop: this parameter is not supported
             run_manager: A run manager with callbacks for the LLM.
         """
-        # Replace this with actual logic to generate a response from a list
-        # of messages.
-        last_message = messages[-1]
-        tokens = last_message.content[: self.parrot_buffer_length]
-        ct_input_tokens = sum(len(message.content) for message in messages)
-        ct_output_tokens = len(tokens)
-        message = AIMessage(
-            content=tokens,
-            additional_kwargs={},  # Used to add additional payload to the message
-            response_metadata={  # Use for response metadata
-                "time_in_seconds": 3,
-            },
-            usage_metadata={
-                "input_tokens": ct_input_tokens,
-                "output_tokens": ct_output_tokens,
-                "total_tokens": ct_input_tokens + ct_output_tokens,
-            },
-        )
-        ##
+        assert self.client is not None, "client not initialized"  # satisfy mypy
 
-        generation = ChatGeneration(message=message)
-        return ChatResult(generations=[generation])
-
-    def _stream(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        **kwargs: Any,
-    ) -> Iterator[ChatGenerationChunk]:
-        """Stream the output of the model.
-
-        This method should be implemented if the model can generate output
-        in a streaming fashion. If the model does not support streaming,
-        do not implement it. In that case streaming requests will be automatically
-        handled by the _generate method.
-
-        Args:
-            messages: the prompt composed of a list of messages.
-            stop: a list of strings on which the model should stop generating.
-                  If generation stops due to a stop token, the stop token itself
-                  SHOULD BE INCLUDED as part of the output. This is not enforced
-                  across models right now, but it's a good practice to follow since
-                  it makes it much easier to parse the output of the model
-                  downstream and understand why generation stopped.
-            run_manager: A run manager with callbacks for the LLM.
-        """
-        last_message = messages[-1]
-        tokens = str(last_message.content[: self.parrot_buffer_length])
-        ct_input_tokens = sum(len(message.content) for message in messages)
-
-        for token in tokens:
-            usage_metadata = UsageMetadata(
-                {
-                    "input_tokens": ct_input_tokens,
-                    "output_tokens": 1,
-                    "total_tokens": ct_input_tokens + 1,
-                }
-            )
-            ct_input_tokens = 0
-            chunk = ChatGenerationChunk(
-                message=AIMessageChunk(content=token, usage_metadata=usage_metadata)
+        if stop:
+            logging.warning(
+                "ignoring stop words, not supported by Llama Stack Inference API"
             )
 
-            if run_manager:
-                # This is optional in newer versions of LangChain
-                # The on_llm_new_token will be called automatically
-                run_manager.on_llm_new_token(token, chunk=chunk)
+        sampling_params: SamplingParams | None = None
+        if self.max_tokens is not None or self.temperature is not None:
+            sampling_params = SamplingParams(
+                strategy=StrategyGreedySamplingStrategy(type="greedy"),
+            )
+            if self.max_tokens is not None:
+                sampling_params["max_tokens"] = self.max_tokens
+            # Llama Stack Inference API does now allow temperature=0,
+            # we convert that to Greedy Sampling by not changing the
+            # sampling strategy.
+            if self.temperature is not None and self.temperature > 0:
+                sampling_params["strategy"] = StrategyTopPSamplingStrategy(
+                    type="top_p",
+                    temperature=self.temperature,
+                )
 
-            yield chunk
+        if kwargs:
+            logging.warning(f"ignoring extra kwargs: {kwargs}")
 
-        # Let's add some other information (e.g., response metadata)
-        chunk = ChatGenerationChunk(
-            message=AIMessageChunk(content="", response_metadata={"time_in_sec": 3})
+        response: ChatCompletionResponse = self.client.inference.chat_completion(
+            model_id=self.model_name,
+            messages=[convert_message(message) for message in messages],
+            sampling_params=sampling_params if sampling_params else NOT_GIVEN,
         )
-        if run_manager:
-            # This is optional in newer versions of LangChain
-            # The on_llm_new_token will be called automatically
-            run_manager.on_llm_new_token(token, chunk=chunk)
-        yield chunk
 
-    # TODO: Implement if ChatLlamaStack supports async streaming. Otherwise delete.
+        return convert_response(response)
+
+    # TODO: Implement native _stream.
+    # def _stream(
+    #     self,
+    #     messages: List[BaseMessage],
+    #     stop: Optional[List[str]] = None,
+    #     run_manager: Optional[CallbackManagerForLLMRun] = None,
+    #     **kwargs: Any,
+    # ) -> Iterator[ChatGenerationChunk]:
+
+    # TODO: Implement native async streaming.
     # async def _astream(
     #     self,
     #     messages: List[BaseMessage],
@@ -408,7 +364,7 @@ class ChatLlamaStack(BaseChatModel):
     #     **kwargs: Any,
     # ) -> AsyncIterator[ChatGenerationChunk]:
 
-    # TODO: Implement if ChatLlamaStack supports async generation. Otherwise delete.
+    # TODO: Implement native async generation.
     # async def _agenerate(
     #     self,
     #     messages: List[BaseMessage],
