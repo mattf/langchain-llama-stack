@@ -1,9 +1,8 @@
-"""Test chat model integration."""
-
 from typing import Type
 
-from langchain_llama_stack.chat_models import ChatLlamaStack
 from langchain_tests.unit_tests import ChatModelUnitTests
+
+from langchain_llama_stack.chat_models import ChatLlamaStack
 
 
 class TestChatLlamaStackUnit(ChatModelUnitTests):
@@ -13,9 +12,6 @@ class TestChatLlamaStackUnit(ChatModelUnitTests):
 
     @property
     def chat_model_params(self) -> dict:
-        # These should be parameters used to initialize your integration for testing
         return {
-            "model": "bird-brain-001",
-            "temperature": 0,
-            "parrot_buffer_length": 50,
+            "model": "not-a-model",
         }

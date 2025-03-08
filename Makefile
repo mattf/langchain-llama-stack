@@ -3,21 +3,25 @@
 # Default target executed when no arguments are given to make.
 all: help
 
+dev: PYTEST_ARGS = -v
+dev: check_imports format lint all-tests
+
 # Define a variable for the test file path.
 TEST_FILE ?= tests/unit_tests/
 integration_test integration_tests: TEST_FILE = tests/integration_tests/
 
+all-tests: test integration_test
 
 # unit tests are run with the --disable-socket flag to prevent network calls
 test tests:
-	poetry run pytest --disable-socket --allow-unix-socket $(TEST_FILE)
+	poetry run pytest --disable-socket --allow-unix-socket $(PYTEST_ARGS) $(TEST_FILE)
 
 test_watch:
 	poetry run ptw --snapshot-update --now . -- -vv $(TEST_FILE)
 
 # integration tests are run without the --disable-socket flag to allow network calls
 integration_test integration_tests:
-	poetry run pytest $(TEST_FILE)
+	poetry run pytest $(PYTEST_ARGS) $(TEST_FILE)
 
 ######################
 # LINTING AND FORMATTING
@@ -59,6 +63,5 @@ help:
 	@echo 'check_imports				- check imports'
 	@echo 'format                       - run code formatters'
 	@echo 'lint                         - run linters'
-	@echo 'test                         - run unit tests'
-	@echo 'tests                        - run unit tests'
-	@echo 'test TEST_FILE=<test_file>   - run all tests in file'
+	@echo 'test                         - run unit tests, use TEST_FILE=<test_file> to run specific tests'
+	@echo 'integration_test             - run integration tests, use TEST_FILE=<test_file> to run specific tests'
