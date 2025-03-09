@@ -13,9 +13,9 @@ on:
       working-directory:
         required: true
         type: choice
-        default: ''
+        default: '.'
         options:
-        - ''
+        - '.'
 
 
 # If another push to the same PR or branch happens while this workflow is still running,
