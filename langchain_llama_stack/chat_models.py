@@ -16,6 +16,9 @@ from llama_stack_client import NOT_GIVEN, Client
 from llama_stack_client.types import (
     ChatCompletionResponse,
 )
+from llama_stack_client.types.inference_completion_params import (
+    Logprobs as LlamaStackLogprobs,
+)
 from llama_stack_client.types.shared_params import (
     SamplingParams,
 )
@@ -223,16 +226,22 @@ class ChatLlamaStack(BaseChatModel):
 
             {'input_tokens': 28, 'output_tokens': 5, 'total_tokens': 33}
 
-    Logprobs:  TODO(mf): add support for logprobs
+    Logprobs:
         .. code-block:: python
 
-            logprobs_llm = llm.bind(logprobs=True)
+            logprobs_llm = llm.bind(logprobs=True)  # or logprobs=3 for top 3
             ai_msg = logprobs_llm.invoke(messages)
             ai_msg.response_metadata["logprobs"]
 
         .. code-block:: python
 
-              # TODO: Example output.
+            [{'"': -2.4698164463043213},
+             {'J': -0.31870245933532715},
+             {"'": -0.15102243423461914},
+             {'ad': -0.004451931454241276},
+             {'ore': -0.0009182137437164783},
+             {' programmer': -1.1367093324661255},
+             {'."': -0.14114761352539062}]
 
     Response metadata
         .. code-block:: python
@@ -295,30 +304,14 @@ class ChatLlamaStack(BaseChatModel):
             "model_name": self.model_name,
         }
 
-    def _generate(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        **kwargs: Any,
-    ) -> ChatResult:
-        """Override the _generate method to implement the chat model logic.
-
-        This can be a call to an API, a call to a local model, or any other
-        implementation that generates a response to the input prompt.
-
-        Args:
-            messages: the prompt composed of a list of messages.
-            stop: this parameter is not supported
-            run_manager: A run manager with callbacks for the LLM.
+    def _get_sampling_params(
+        self, **kwargs: Any
+    ) -> tuple[Optional[SamplingParams], Any]:
         """
-        assert self.client is not None, "client not initialized"  # satisfy mypy
+        Get the sampling parameters.
 
-        if stop:
-            logging.warning(
-                "ignoring stop words, not supported by Llama Stack Inference API"
-            )
-
+        TODO(mf): allow kwargs to override the model's settings
+        """
         sampling_params: SamplingParams | None = None
         if self.max_tokens is not None or self.temperature is not None:
             sampling_params = SamplingParams(
@@ -334,6 +327,32 @@ class ChatLlamaStack(BaseChatModel):
                     type="top_p",
                     temperature=self.temperature,
                 )
+        return sampling_params, kwargs
+
+    def _generate(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        logprobs: Optional[bool | int] = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        """
+        Generate a response to the input messages.
+
+        Args:
+            messages: the prompt composed of a list of messages.
+            stop: this parameter is not supported
+            run_manager: A run manager with callbacks for the LLM.
+        """
+        assert self.client is not None, "client not initialized"  # satisfy mypy
+
+        if stop:
+            logging.warning(
+                "ignoring stop words, not supported by Llama Stack Inference API"
+            )
+
+        sampling_params, kwargs = self._get_sampling_params(**kwargs)
 
         if kwargs:
             logging.warning(f"ignoring extra kwargs: {kwargs}")
@@ -342,6 +361,7 @@ class ChatLlamaStack(BaseChatModel):
             model_id=self.model_name,
             messages=[convert_message(message) for message in messages],
             sampling_params=sampling_params if sampling_params else NOT_GIVEN,
+            logprobs=LlamaStackLogprobs(top_k=logprobs) if logprobs else NOT_GIVEN,
         )
 
         return convert_response(response)
