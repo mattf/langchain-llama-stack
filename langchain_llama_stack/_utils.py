@@ -8,6 +8,7 @@ from langchain_core.messages import (
     FunctionMessage,
     HumanMessage,
     SystemMessage,
+    ToolCall,
     ToolMessage,
 )
 from langchain_core.outputs import ChatGeneration, ChatResult
@@ -152,6 +153,16 @@ def convert_response(response: ChatCompletionResponse) -> ChatResult:
         response_metadata["logprobs"] = [
             token.logprobs_by_token for token in response.logprobs
         ]
+    tool_calls = []
+    if response.completion_message.tool_calls:
+        tool_calls = [
+            ToolCall(
+                name=call.tool_name,
+                args=call.arguments,
+                id=call.call_id,
+            )
+            for call in response.completion_message.tool_calls
+        ]
 
     return ChatResult(
         generations=[
@@ -159,7 +170,7 @@ def convert_response(response: ChatCompletionResponse) -> ChatResult:
                 message=AIMessage(
                     content=content,
                     response_metadata=response_metadata,
-                    # TODO(md): add tool_calls
+                    tool_calls=tool_calls,
                     # TODO(mf): add usage_metadata
                 )
             )
