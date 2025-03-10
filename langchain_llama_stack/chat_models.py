@@ -1,20 +1,26 @@
 """Llama Stack chat models."""
 
 import logging
-from typing import Any, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import httpx
 from langchain_core.callbacks import (
     CallbackManagerForLLMRun,
 )
-from langchain_core.language_models import BaseChatModel
+from langchain_core.language_models import BaseChatModel, LanguageModelInput
 from langchain_core.messages import (
     BaseMessage,
 )
 from langchain_core.outputs import ChatResult
+from langchain_core.runnables import Runnable
+from langchain_core.tools import BaseTool
+from langchain_core.utils.function_calling import convert_to_json_schema
 from llama_stack_client import NOT_GIVEN, Client
 from llama_stack_client.types import (
     ChatCompletionResponse,
+)
+from llama_stack_client.types.inference_chat_completion_params import (
+    Tool as LlamaStackTool,
 )
 from llama_stack_client.types.inference_completion_params import (
     Logprobs as LlamaStackLogprobs,
@@ -25,6 +31,9 @@ from llama_stack_client.types.shared_params import (
 from llama_stack_client.types.shared_params.sampling_params import (
     StrategyGreedySamplingStrategy,
     StrategyTopPSamplingStrategy,
+)
+from llama_stack_client.types.shared_params.tool_param_definition import (
+    ToolParamDefinition as LlamaStackToolParamDefinition,
 )
 from pydantic import Field, SecretStr, model_validator
 
@@ -132,7 +141,7 @@ class ChatLlamaStack(BaseChatModel):
 
             AIMessage(content='"J\'adore programmer."', additional_kwargs={}, response_metadata={'stop_reason': 'end_of_turn'}, id='run-fe11469c-bc41-4086-85fb-80c37a9d7efe-0')
 
-    Tool calling:  TODO(mf): add support for bind_tools
+    Tool calling:
         .. code-block:: python
 
             from pydantic import BaseModel, Field
@@ -140,12 +149,12 @@ class ChatLlamaStack(BaseChatModel):
             class GetWeather(BaseModel):
                 '''Get the current weather in a given location'''
 
-                location: str = Field(..., description="The city and state, e.g. San Francisco, CA")
+                location: str = Field(..., description="The city and state, e.g. Boston, MA")
 
             class GetPopulation(BaseModel):
                 '''Get the current population in a given location'''
 
-                location: str = Field(..., description="The city and state, e.g. San Francisco, CA")
+                location: str = Field(..., description="The city and state, e.g. Boston, MA")
 
             llm_with_tools = llm.bind_tools([GetWeather, GetPopulation])
             ai_msg = llm_with_tools.invoke("Which city is hotter today and which is bigger: LA or NY?")
@@ -153,7 +162,10 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-              # TODO: Example output.
+            [{'name': 'GetWeather',
+              'args': {'location': 'Los Angeles, CA'},
+              'id': 'chatcmpl-tool-25d24ab4522845ed8b0fe9335c5911d3',
+              'type': 'tool_call'}]
 
         See ``ChatLlamaStack.bind_tools()`` method for more.
 
@@ -335,6 +347,7 @@ class ChatLlamaStack(BaseChatModel):
         stop: Optional[List[str]] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         logprobs: Optional[bool | int] = None,
+        tools: Optional[Iterable[LlamaStackTool]] = None,
         **kwargs: Any,
     ) -> ChatResult:
         """
@@ -362,9 +375,115 @@ class ChatLlamaStack(BaseChatModel):
             messages=[convert_message(message) for message in messages],
             sampling_params=sampling_params if sampling_params else NOT_GIVEN,
             logprobs=LlamaStackLogprobs(top_k=logprobs) if logprobs else NOT_GIVEN,
+            tools=tools if tools else NOT_GIVEN,
         )
 
         return convert_response(response)
+
+    def bind_tools(
+        self,
+        tools: Sequence[Union[Dict[str, Any], type, Callable, BaseTool]],
+        **kwargs: Any,
+    ) -> Runnable[LanguageModelInput, BaseMessage]:
+        """
+        Bind tools to the chat model.
+
+        Args:
+            tools: List of tools to bind to the chat model.
+
+        Returns:
+            A new chat model with the tools bound.
+
+        TODO(mf): tool_choice parameter
+        """
+        #
+        # we convert the tools to JSON schema, convert the JSON schema to
+        # Llama Stack tool objects, and then bind the Llama Stack tools to
+        # the chat model.
+        #
+
+        ls_tools = []
+        for tool in tools:
+            json_schema = convert_to_json_schema(tool)
+            assert "title" in json_schema, "missing title (tool's name): {json_schema}"
+            if "description" not in json_schema:
+                logging.warning(f"missing description for tool: {json_schema['title']}")
+            parameters: dict[str, LlamaStackToolParamDefinition] = {}
+            if "properties" in json_schema:
+                #
+                # {
+                #   "type": "object",
+                #   "properties": {
+                #     "location": {
+                #       "type": "string",
+                #       "description": "The city and state, e.g. Somerville, MA"
+                #     },
+                #     "rank": {
+                #       "type": "integer",
+                #       "description": "Rank of the location",
+                #       "exclusiveMaximum": 100,
+                #       "exclusiveMinimum": 0
+                #     }
+                #     "unit": {
+                #       "type": "string",
+                #       "enum": ["celsius", "fahrenheit"]
+                #     }
+                #   },
+                #   "required": ["location"]
+                # }
+                #
+                # becomes
+                #
+                # [
+                #   ToolParamDefinition(
+                #     name="location",
+                #     type="string",
+                #     description="The city and state, e.g. Somerville, MA",
+                #     required=True
+                #   ),
+                #   ToolParamDefinition(
+                #     name="rank",
+                #     type="integer",
+                #     description="Rank of the location",
+                #     required=False
+                #   ),
+                #   ToolParamDefinition(
+                #     name="unit",
+                #     type="string",
+                #     description="The unit of temperature",
+                #     required=False
+                #   )
+                # ]
+                #
+                # TODO(mf): JSON schema can have limits, e.g. int lt/gt or enum for
+                #           value, Llama Stack Inference API does not support these
+                # TODO(mf): Llama Stack Inference API supports a default value, but
+                #           the input JSON schema does not
+                #
+                required = json_schema.get("required", [])
+                parameters = {}
+                for name, param in json_schema.get("properties", {}).items():
+                    assert "type" in param, f"missing type for parameter {name}"
+                    if "description" not in param:
+                        logging.warning(f"missing description for parameter: {name}")
+                    parameters[name] = LlamaStackToolParamDefinition(
+                        param_type=param["type"],
+                        default=param.get("default", None),
+                        description=param.get("description", ""),
+                        required=name in required,
+                    )
+            ls_tools.append(
+                LlamaStackTool(
+                    tool_name=json_schema["title"],
+                    description=json_schema.get("description", ""),
+                    parameters=parameters,
+                )
+            )
+
+        if kwargs:
+            logging.warning(f"ignoring extra kwargs: {kwargs}")
+
+        return self.bind(tools=ls_tools)
 
     # TODO: Implement native _stream.
     # def _stream(

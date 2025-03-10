@@ -1,7 +1,6 @@
-from typing import Type
+from typing import Any, Type
 
 import pytest
-from langchain_core.language_models import BaseChatModel
 from langchain_tests.integration_tests import ChatModelIntegrationTests
 
 from langchain_llama_stack.chat_models import ChatLlamaStack
@@ -22,13 +21,54 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
     def returns_usage_metadata(self) -> bool:
         return False
 
-    @pytest.mark.xfail(reason="Produces full output, not chunks")
-    def test_stream(self, model: BaseChatModel) -> None:
-        self.test_stream(model)
+    @property
+    def has_structured_output(self) -> bool:
+        return False
 
     @pytest.mark.xfail(reason="Produces full output, not chunks")
-    async def test_astream(self, model: BaseChatModel) -> None:
-        await self.test_astream(model)
+    def test_stream(self, *args: Any) -> None:
+        super().test_stream(*args)
+
+    @pytest.mark.xfail(reason="Produces full output, not chunks")
+    async def test_astream(self, *args: Any) -> None:
+        await super().test_astream(*args)
+
+    @pytest.mark.xfail(reason="Does not follow OpenAI tool call wire format")
+    def test_tool_message_histories_string_content(self, *args: Any) -> None:
+        super().test_tool_message_histories_string_content(*args)
+
+    @pytest.mark.xfail(reason=("Does not follow Anthropic wire format"))
+    def test_tool_message_histories_list_content(self, *args: Any) -> None:
+        super().test_tool_message_histories_list_content(*args)
+
+    @pytest.mark.xfail(reason=("Does not support tool call status"))
+    def test_tool_message_error_status(self, *args: Any) -> None:
+        super().test_tool_message_error_status(*args)
+
+    @pytest.mark.xfail(reason=("Does not follow OpenAI tool call wire format"))
+    def test_structured_few_shot_examples(self, *args: Any) -> None:
+        # need to support messages = [
+        #   HumanMessage(content='What is 1 + 2', ...),
+        #   AIMessage(content='',
+        #             tool_calls=[{'name': 'my_adder_tool',
+        #                          'args': {'a': 1, 'b': 2},
+        #                          'id': 'id0',
+        #                          'type': 'tool_call'}],
+        #             additional_kwargs={
+        #               'tool_calls': [{
+        #                 'id': 'id0',
+        #                 'type': 'function',
+        #                 'function': {
+        #                   'name': 'my_adder_tool',
+        #                   'arguments': '{"a":1,"b":2}'}}
+        #               ]},
+        #             ...)
+        #   ToolMessage(content='{"result": 3}',
+        #               tool_call_id='id0'),
+        #   AIMessage(content='{"result": 3}', ...),
+        #   HumanMessage(content='What is 3 + 4', ...)
+        # ]
+        super().test_structured_few_shot_examples(*args)
 
     # TODO(mf): re-enable when we can extend the test suite
     # def test_logprobs(self, model: BaseChatModel) -> None:
