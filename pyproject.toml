@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "langchain-llama-stack"
-version = "0.0.2"
+version = "0.0.3"
 description = "An integration package connecting LlamaStack and LangChain"
 authors = []
 readme = "README.md"
