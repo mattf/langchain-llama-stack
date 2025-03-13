@@ -489,10 +489,17 @@ class ChatLlamaStack(BaseChatModel):
                 )
             )
 
+        # see https://github.com/langchain-ai/langchain/issues/30249
+        extra = {}
+        if "ls_structured_output_format" in kwargs:
+            extra["ls_structured_output_format"] = kwargs.pop(
+                "ls_structured_output_format"
+            )
+
         if kwargs:
             logging.warning(f"ignoring extra kwargs: {kwargs}")
 
-        return self.bind(tools=ls_tools)
+        return self.bind(tools=ls_tools, **extra)
 
     # TODO: Implement native _stream.
     def _stream(
