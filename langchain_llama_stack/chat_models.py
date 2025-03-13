@@ -472,11 +472,32 @@ class ChatLlamaStack(BaseChatModel):
                 required = json_schema.get("required", [])
                 parameters = {}
                 for name, param in json_schema.get("properties", {}).items():
-                    assert "type" in param, f"missing type for parameter {name}"
+                    # to get type information we want to do -
+                    #  param_type = param["type"]
+                    # however, the type may be a union and appear as -
+                    #  'anyOf': [{'type': 'string'}, {'type': 'null'}]
+                    # so we need to check for "type" and "anyOf".
+                    # if we find "anyOf" we can remove {"type": "null"}
+                    # and concatenate the rest.
+                    # there's also the possibility of oneOf and allOf. tbd.
+                    if "type" in param:
+                        param_type = param["type"]
+                    elif "anyOf" in param and isinstance(param["anyOf"], list):
+                        param_type = " | ".join(
+                            [
+                                any_of["type"]
+                                for any_of in param["anyOf"]
+                                if any_of["type"] != "null"
+                            ]
+                        )
+                    else:
+                        raise ValueError(f"missing type for parameter: {name}: {param}")
                     if "description" not in param:
-                        logging.warning(f"missing description for parameter: {name}")
+                        logging.warning(
+                            f"missing description for parameter: {name}: {param}"
+                        )
                     parameters[name] = LlamaStackToolParamDefinition(
-                        param_type=param["type"],
+                        param_type=param_type,
                         default=param.get("default", None),
                         description=param.get("description", ""),
                         required=name in required,

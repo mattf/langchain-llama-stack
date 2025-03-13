@@ -33,10 +33,6 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
     def test_tool_message_error_status(self, *args: Any) -> None:
         super().test_tool_message_error_status(*args)
 
-    @pytest.mark.xfail(reason=("Does not support optional param"))
-    def test_structured_output_optional_param(self, *args: Any) -> None:
-        super().test_structured_output_optional_param(*args)
-
     @pytest.mark.xfail(reason=("Does not follow OpenAI tool call wire format"))
     def test_structured_few_shot_examples(self, *args: Any) -> None:
         # need to support messages = [
