@@ -25,14 +25,6 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
     def has_structured_output(self) -> bool:
         return False
 
-    @pytest.mark.xfail(reason="Produces full output, not chunks")
-    def test_stream(self, *args: Any) -> None:
-        super().test_stream(*args)
-
-    @pytest.mark.xfail(reason="Produces full output, not chunks")
-    async def test_astream(self, *args: Any) -> None:
-        await super().test_astream(*args)
-
     @pytest.mark.xfail(reason="Does not follow OpenAI tool call wire format")
     def test_tool_message_histories_string_content(self, *args: Any) -> None:
         super().test_tool_message_histories_string_content(*args)

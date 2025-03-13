@@ -1,7 +1,17 @@
 """Llama Stack chat models."""
 
 import logging
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import httpx
 from langchain_core.callbacks import (
@@ -9,9 +19,10 @@ from langchain_core.callbacks import (
 )
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
 from langchain_core.messages import (
+    AIMessageChunk,
     BaseMessage,
 )
-from langchain_core.outputs import ChatResult
+from langchain_core.outputs import ChatGenerationChunk, ChatResult
 from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 from langchain_core.utils.function_calling import convert_to_json_schema
@@ -278,8 +289,6 @@ class ChatLlamaStack(BaseChatModel):
     timeout: Optional[int] = None
     max_retries: Optional[int] = None
 
-    disable_streaming: bool = True  # TODO(mf): add streaming support
-
     client: Client | None = Field(default=None, exclude=True)
     """Internal Llama Stack client"""
 
@@ -486,13 +495,25 @@ class ChatLlamaStack(BaseChatModel):
         return self.bind(tools=ls_tools)
 
     # TODO: Implement native _stream.
-    # def _stream(
-    #     self,
-    #     messages: List[BaseMessage],
-    #     stop: Optional[List[str]] = None,
-    #     run_manager: Optional[CallbackManagerForLLMRun] = None,
-    #     **kwargs: Any,
-    # ) -> Iterator[ChatGenerationChunk]:
+    def _stream(
+        self,
+        messages: List[BaseMessage],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> Iterator[ChatGenerationChunk]:
+        # when _stream is not implemented, BaseChatModel.stream will call invoke and
+        # _generate without appropriately using the run_manager or returning a *Chunk
+        # instance. this results in standard streaming tests failing. by calling
+        # _generate directly, we can ensure BaseChatModel.stream does all its regular
+        # streaming work and control the return type.
+        result = self._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+        assert result.generations, "no generations in result"
+        kwargs = result.generations[0].message.model_dump()
+        kwargs["type"] = (
+            "AIMessageChunk"  # AIMessageChunk.type must be "AIMessageChunk"
+        )
+        yield ChatGenerationChunk(message=AIMessageChunk(**kwargs))
 
     # TODO: Implement native async streaming.
     # async def _astream(
