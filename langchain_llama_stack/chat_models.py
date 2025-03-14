@@ -138,7 +138,7 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-            # TODO: Example output.
+            AIMessageChunk(content='"J\'adore programmer."', additional_kwargs={}, response_metadata={'stop_reason': 'end_of_turn'}, id='run-3fd45daf-7488-458d-8e8f-947f7d066ef4')
 
     Async:
         .. code-block:: python
