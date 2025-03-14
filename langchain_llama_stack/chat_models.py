@@ -183,7 +183,7 @@ class ChatLlamaStack(BaseChatModel):
 
         See ``ChatLlamaStack.bind_tools()`` method for more.
 
-    Structured output:  TODO(mf): add support for structured output
+    Structured output:
         .. code-block:: python
 
             from typing import Optional
@@ -202,7 +202,7 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-            # TODO: Example output.
+            Joke(setup='Why did the cat join a band?', punchline='Because it wanted to be the purr-cussionist', rating=8)
 
         See ``ChatLlamaStack.with_structured_output()`` for more.
 
