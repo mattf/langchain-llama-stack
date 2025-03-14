@@ -17,10 +17,6 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
             "model": "meta/llama-3.1-8b-instruct",
         }
 
-    @property
-    def returns_usage_metadata(self) -> bool:
-        return False
-
     @pytest.mark.xfail(reason="Does not follow OpenAI tool call wire format")
     def test_tool_message_histories_string_content(self, *args: Any) -> None:
         super().test_tool_message_histories_string_content(*args)
