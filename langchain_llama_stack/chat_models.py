@@ -138,7 +138,7 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-            # TODO: Example output.
+            AIMessageChunk(content='"J\'adore programmer."', additional_kwargs={}, response_metadata={'stop_reason': 'end_of_turn'}, id='run-3fd45daf-7488-458d-8e8f-947f7d066ef4')
 
     Async:
         .. code-block:: python
@@ -183,7 +183,7 @@ class ChatLlamaStack(BaseChatModel):
 
         See ``ChatLlamaStack.bind_tools()`` method for more.
 
-    Structured output:  TODO(mf): add support for structured output
+    Structured output:
         .. code-block:: python
 
             from typing import Optional
@@ -202,7 +202,7 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-            # TODO: Example output.
+            Joke(setup='Why did the cat join a band?', punchline='Because it wanted to be the purr-cussionist', rating=8)
 
         See ``ChatLlamaStack.with_structured_output()`` for more.
 
