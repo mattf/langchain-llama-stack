@@ -33,6 +33,9 @@ from llama_stack_client.types import (
 from llama_stack_client.types.inference_chat_completion_params import (
     Tool as LlamaStackTool,
 )
+from llama_stack_client.types.inference_chat_completion_params import (
+    ToolConfig as LlamaStackToolConfig,
+)
 from llama_stack_client.types.inference_completion_params import (
     Logprobs as LlamaStackLogprobs,
 )
@@ -357,6 +360,7 @@ class ChatLlamaStack(BaseChatModel):
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         logprobs: Optional[bool | int] = None,
         tools: Optional[Iterable[LlamaStackTool]] = None,
+        tool_config: Optional[LlamaStackToolConfig] = None,
         **kwargs: Any,
     ) -> ChatResult:
         """
@@ -385,6 +389,7 @@ class ChatLlamaStack(BaseChatModel):
             sampling_params=sampling_params if sampling_params else NOT_GIVEN,
             logprobs=LlamaStackLogprobs(top_k=logprobs) if logprobs else NOT_GIVEN,
             tools=tools if tools else NOT_GIVEN,
+            tool_config=tool_config if tool_config else NOT_GIVEN,
         )
 
         return convert_response(response)
@@ -397,13 +402,19 @@ class ChatLlamaStack(BaseChatModel):
         """
         Bind tools to the chat model.
 
+        Notes:
+         - tool_choice="any" does not guarantee that tools will be used
+
         Args:
             tools: List of tools to bind to the chat model.
+            tool_choice: Optional hint to model on how to use tools. Values are -
+              - "any" / "auto": let the model decide
+              - "required": tools are required
+              - "none": do not use tools
+              - other string: name of tool to use
 
         Returns:
             A new chat model with the tools bound.
-
-        TODO(mf): tool_choice parameter
         """
         #
         # we convert the tools to JSON schema, convert the JSON schema to
@@ -510,6 +521,20 @@ class ChatLlamaStack(BaseChatModel):
                 )
             )
 
+        ls_tool_config: Optional[LlamaStackToolConfig] = None
+        if tool_choice := kwargs.pop("tool_choice", None):
+            if tool_choice == "any":  # LangChain apps tend to use "any"
+                tool_choice = "auto"
+            # for compatibility with OpenAI's
+            #  tool_choice={"type": "function", "function": {"name": name}}
+            if (
+                isinstance(tool_choice, dict)
+                and tool_choice.get("type", None) == "function"
+                and (name := tool_choice.get("function", {}).get("name", None))
+            ):
+                tool_choice = name
+            ls_tool_config = LlamaStackToolConfig(tool_choice=tool_choice)
+
         # see https://github.com/langchain-ai/langchain/issues/30249
         extra = {}
         if "ls_structured_output_format" in kwargs:
@@ -520,7 +545,7 @@ class ChatLlamaStack(BaseChatModel):
         if kwargs:
             logging.warning(f"ignoring extra kwargs: {kwargs}")
 
-        return self.bind(tools=ls_tools, **extra)
+        return self.bind(tools=ls_tools, tool_config=ls_tool_config, **extra)
 
     # TODO: Implement native _stream.
     def _stream(
