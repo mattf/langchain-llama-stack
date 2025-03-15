@@ -150,6 +150,7 @@ def convert_response(response: ChatCompletionResponse) -> ChatResult:
         response_metadata["logprobs"] = [
             token.logprobs_by_token for token in response.logprobs
         ]
+
     tool_calls = []
     if response.completion_message.tool_calls:
         tool_calls = [
@@ -161,6 +162,17 @@ def convert_response(response: ChatCompletionResponse) -> ChatResult:
             for call in response.completion_message.tool_calls
         ]
 
+    usage_metadata = {}
+    if response.metrics:
+        usage_metrics_map = {
+            "prompt_tokens": "input_tokens",
+            "completion_tokens": "output_tokens",
+            "total_tokens": "total_tokens",
+        }
+        for metric in response.metrics:
+            if metric.metric in usage_metrics_map:
+                usage_metadata[usage_metrics_map[metric.metric]] = metric.value
+
     return ChatResult(
         generations=[
             ChatGeneration(
@@ -168,7 +180,7 @@ def convert_response(response: ChatCompletionResponse) -> ChatResult:
                     content=content,
                     response_metadata=response_metadata,
                     tool_calls=tool_calls,
-                    # TODO(mf): add usage_metadata
+                    usage_metadata=usage_metadata if usage_metadata else None,
                 )
             )
         ]

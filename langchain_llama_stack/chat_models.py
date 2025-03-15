@@ -242,7 +242,7 @@ class ChatLlamaStack(BaseChatModel):
 
             # TODO: Example output.
 
-    Token usage:  TODO(mf): add support for token usage metadata
+    Token usage:
         .. code-block:: python
 
             ai_msg = llm.invoke(messages)
@@ -250,7 +250,7 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-            {'input_tokens': 28, 'output_tokens': 5, 'total_tokens': 33}
+            {'input_tokens': 32, 'output_tokens': 17, 'total_tokens': 49}
 
     Logprobs:
         .. code-block:: python
