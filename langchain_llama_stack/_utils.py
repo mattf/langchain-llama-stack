@@ -80,7 +80,7 @@ def convert_message(message: BaseMessage) -> LlamaStackMessage:
     | SystemMessage     | LlamaStackSystemMessage       |                      |
     | AIMessage         | LlamaStackCompletionMessage   | stop_reason mismatch |
     | HumanMessage      | LlamaStackUserMessage         |                      |
-    | ToolMessage       | LlamaStackToolResponseMessage | tool_name mismatch   |
+    | ToolMessage       | LlamaStackToolResponseMessage |                      |
 
     Notes:
         - stop_reason defaulted to "end_of_turn" if not found
@@ -123,9 +123,6 @@ def convert_message(message: BaseMessage) -> LlamaStackMessage:
             role="tool",
             content=_convert_content(message.content),
             call_id=message.tool_call_id,
-            # Llama Stack requires tool_name, LangChain does not provide it,
-            # see https://github.com/meta-llama/llama-stack/issues/1421
-            tool_name="use the call_id",
         )
     elif isinstance(message, FunctionMessage):
         raise ValueError("FunctionMessage is not supported, use ToolMessage instead.")
