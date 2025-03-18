@@ -336,6 +336,28 @@ class ChatLlamaStack(BaseChatModel):
             "model_name": self.model_name,
         }
 
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        """Return whether this model can be serialized by LangChain."""
+        return True
+
+    @property
+    def lc_secrets(self) -> Dict[str, str]:
+        """Return a map of constructor argument names to secret ids."""
+        return {"api_key": "LLAMA_STACK_API_KEY"}
+
+    @property
+    def lc_attributes(self) -> Dict:
+        """Return additional attributes that should be included in serialization."""
+        return {
+            k: v
+            for k, v in {
+                "model": self.model_name,  # to match constructor name
+                "base_url": self.base_url,
+            }.items()
+            if v is not None
+        }
+
     def _get_sampling_params(
         self, **kwargs: Any
     ) -> tuple[Optional[SamplingParams], Any]:

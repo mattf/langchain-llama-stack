@@ -1,0 +1,28 @@
+# serializer version: 1
+# name: TestChatLlamaStackUnit.test_serdes[serialized]
+  dict({
+    'id': list([
+      'langchain_llama_stack',
+      'chat_models',
+      'ChatLlamaStack',
+    ]),
+    'kwargs': dict({
+      'api_key': dict({
+        'id': list([
+          'LLAMA_STACK_API_KEY',
+        ]),
+        'lc': 1,
+        'type': 'secret',
+      }),
+      'max_retries': 2,
+      'max_tokens': 100,
+      'model': 'not-a-model',
+      'model_name': 'not-a-model',
+      'temperature': 0.0,
+      'timeout': 60,
+    }),
+    'lc': 1,
+    'name': 'ChatLlamaStack',
+    'type': 'constructor',
+  })
+# ---
