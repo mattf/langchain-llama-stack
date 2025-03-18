@@ -214,16 +214,16 @@ class ChatLlamaStack(BaseChatModel):
 
         See ``ChatLlamaStack.with_structured_output()`` for more.
 
-    JSON mode:  TODO(mf): add support for JSON mode
+    JSON mode:
         .. code-block:: python
 
-            json_llm = llm.bind(response_format={"type": "json_object"})
-            ai_msg = json_llm.invoke("Return a JSON object with key 'random_ints' and a value of 10 random ints in [0-99]")
-            ai_msg.content
+            json_llm = llm.with_structured_output(method="json_mode")
+            ai_msg = json_llm.invoke("Return only a JSON object with key 'random_ints' and a value of 10 random ints in [0-99].")
+            ai_msg
 
         .. code-block:: python
 
-            # TODO: Example output.
+            {'random_ints': [83, 19, 91, 46, 75, 33, 28, 41, 59, 12]}
 
     Image input:  TODO(mf): add support for image inputs
         .. code-block:: python
