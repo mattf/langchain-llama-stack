@@ -1,6 +1,7 @@
 """Llama Stack chat models."""
 
 import logging
+from operator import itemgetter
 from typing import (
     Any,
     Callable,
@@ -8,6 +9,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Literal,
     Optional,
     Sequence,
     Union,
@@ -22,10 +24,16 @@ from langchain_core.messages import (
     AIMessageChunk,
     BaseMessage,
 )
+from langchain_core.output_parsers import (
+    JsonOutputParser,
+    PydanticOutputParser,
+)
+from langchain_core.output_parsers.base import OutputParserLike
 from langchain_core.outputs import ChatGenerationChunk, ChatResult
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableMap, RunnablePassthrough
 from langchain_core.tools import BaseTool
 from langchain_core.utils.function_calling import convert_to_json_schema
+from langchain_core.utils.pydantic import is_basemodel_subclass
 from llama_stack_client import NOT_GIVEN, Client
 from llama_stack_client.types import (
     ChatCompletionResponse,
@@ -49,7 +57,7 @@ from llama_stack_client.types.shared_params.sampling_params import (
 from llama_stack_client.types.shared_params.tool_param_definition import (
     ToolParamDefinition as LlamaStackToolParamDefinition,
 )
-from pydantic import Field, SecretStr, model_validator
+from pydantic import BaseModel, Field, SecretStr, model_validator
 
 from langchain_llama_stack._utils import convert_message, convert_response
 
@@ -206,16 +214,16 @@ class ChatLlamaStack(BaseChatModel):
 
         See ``ChatLlamaStack.with_structured_output()`` for more.
 
-    JSON mode:  TODO(mf): add support for JSON mode
+    JSON mode:
         .. code-block:: python
 
-            json_llm = llm.bind(response_format={"type": "json_object"})
-            ai_msg = json_llm.invoke("Return a JSON object with key 'random_ints' and a value of 10 random ints in [0-99]")
-            ai_msg.content
+            json_llm = llm.with_structured_output(method="json_mode")
+            ai_msg = json_llm.invoke("Return only a JSON object with key 'random_ints' and a value of 10 random ints in [0-99].")
+            ai_msg
 
         .. code-block:: python
 
-            # TODO: Example output.
+            {'random_ints': [83, 19, 91, 46, 75, 33, 28, 41, 59, 12]}
 
     Image input:  TODO(mf): add support for image inputs
         .. code-block:: python
@@ -380,6 +388,10 @@ class ChatLlamaStack(BaseChatModel):
 
         sampling_params, kwargs = self._get_sampling_params(**kwargs)
 
+        # when generating for structured output, the response_format param
+        # may be bound.
+        response_format = kwargs.pop("response_format", None)
+
         if kwargs:
             logging.warning(f"ignoring extra kwargs: {kwargs}")
 
@@ -390,9 +402,78 @@ class ChatLlamaStack(BaseChatModel):
             logprobs=LlamaStackLogprobs(top_k=logprobs) if logprobs else NOT_GIVEN,
             tools=tools if tools else NOT_GIVEN,
             tool_config=tool_config if tool_config else NOT_GIVEN,
+            response_format=response_format if response_format else NOT_GIVEN,
         )
 
         return convert_response(response)
+
+    # TODO(mf): remove after https://github.com/langchain-ai/langchain/discussions/30324
+    def with_structured_output(
+        self,
+        schema: Optional[Union[Dict, type]] = None,  # Optional to match OpenAI
+        *,
+        method: Literal[
+            "function_calling", "json_mode", "json_schema"
+        ] = "function_calling",  # method to match OpenAI
+        include_raw: bool = False,
+        **kwargs: Any,
+    ) -> Runnable[LanguageModelInput, Union[Dict, BaseModel]]:
+        # method handling is complext -
+        #  method = function_calling is effectively the default, because
+        #   the default with_structured_output will call bind_tools to setup
+        #   the structured output
+        #  method = json_schema is supported by Llama Stack's Inference API
+        #  method = json_mode has two meanings, for OpenAI (the de facto standard)
+        #   it means the structured output is a JSON object, unconstrained by
+        #   a schema. however, LangChain only appears to do json_model with
+        #   a schema. this means we can map LangChain method=json_mode to
+        #   method=json_schema w/ schema being optional.
+        #
+        # we want to rely on BaseChatModel as much as possible, so we will
+        # let it handle the method = function_calling case. we will handle
+        # the method = json_schema / json_mode case.
+        if (method == "json_schema" or method == "function_calling") and schema is None:
+            raise ValueError(
+                "schema is required when method is json_schema or function_calling"
+            )
+
+        if method == "json_schema" or method == "json_mode":
+            llm: Runnable = self
+            if schema:
+                json_schema = convert_to_json_schema(schema)
+                llm = self.bind(
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": json_schema,
+                    },
+                )
+
+            #
+            # NOTE - this is derived from BaseChatModel.with_structured_output
+            #
+            if isinstance(schema, type) and is_basemodel_subclass(schema):
+                output_parser: OutputParserLike = PydanticOutputParser(
+                    pydantic_object=schema
+                )
+            else:
+                output_parser = JsonOutputParser()
+            if include_raw:
+                parser_assign = RunnablePassthrough.assign(
+                    parsed=itemgetter("raw") | output_parser,
+                    parsing_error=lambda _: None,
+                )
+                parser_none = RunnablePassthrough.assign(parsed=lambda _: None)
+                parser_with_fallback = parser_assign.with_fallbacks(
+                    [parser_none], exception_key="parsing_error"
+                )
+                return RunnableMap(raw=llm) | parser_with_fallback
+            else:
+                return llm | output_parser
+            #
+            # end of code take from BaseChatModel.with_structured_output
+            #
+
+        return super().with_structured_output(schema, include_raw=include_raw, **kwargs)  # type: ignore
 
     def bind_tools(
         self,

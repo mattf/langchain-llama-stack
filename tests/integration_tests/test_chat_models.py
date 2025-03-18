@@ -17,6 +17,10 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
             "model": "meta/llama-3.1-8b-instruct",
         }
 
+    @property
+    def supports_json_mode(self) -> bool:
+        return True
+
     @pytest.mark.xfail(reason="Does not follow OpenAI tool call wire format")
     def test_tool_message_histories_string_content(self, *args: Any) -> None:
         super().test_tool_message_histories_string_content(*args)
@@ -59,3 +63,36 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
     #     logprobs_llm = model.bind(logprobs=True)
     #     ai_msg = logprobs_llm.invoke("Hello, how are you?")
     #     assert "logprobs" in ai_msg.response_metadata, "logprobs not present"
+
+    # TODO(mf): re-enable when we can extend the test suite
+    # from langchain_core.language_models import BaseChatModel
+
+    # def test_doc_json_mode(self, model: BaseChatModel) -> None:
+    #     """
+    #     Test structured output via JSON mode according to
+    #      https://python.langchain.com/docs/concepts/structured_outputs/#json-mode
+
+    #         ```
+    #         from langchain_llama_stack import ChatLlamaStack
+    #         model = ChatLlamaStack(
+    #           model=...
+    #         ).with_structured_output(method="json_mode")
+    #         ai_msg = model.invoke(
+    #             "Return a JSON object with key 'random_ints' "
+    #             "and a value of 10 random ints in [0-99]"
+    #         )
+    #         ai_msg
+    #         {'random_ints': [27, 84, 9, 56, 31, 57, 43, 68, 19, 74]}
+    #         ```
+    #     """
+    #     ai_msg = (
+    #         cast(ChatLlamaStack, model)
+    #         .with_structured_output(method="json_mode")
+    #         .invoke(
+    #             "Return only a JSON object with key 'random_ints' "
+    #             "and a value of 10 random ints in [0-99]. "
+    #         )
+    #     )
+    #     assert isinstance(ai_msg, dict)
+    #     assert "random_ints" in ai_msg
+    #     assert isinstance(ai_msg["random_ints"], list)
