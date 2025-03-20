@@ -18,7 +18,17 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
         }
 
     @property
+    def image_model_params(self) -> dict:
+        return {
+            "model": "meta/llama-3.2-11b-vision-instruct",
+        }
+
+    @property
     def supports_json_mode(self) -> bool:
+        return True
+
+    @property
+    def supports_image_inputs(self) -> bool:
         return True
 
     @pytest.mark.xfail(reason="Does not follow OpenAI tool call wire format")
