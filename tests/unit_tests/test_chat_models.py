@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Any, AsyncIterator, Type
 
 import pytest
 import pytest_mock
@@ -72,3 +72,48 @@ class TestChatLlamaStackUnit(ChatModelUnitTests):
         _, kwargs = mock_chat_completion.call_args
         assert "tool_config" in kwargs
         assert kwargs["tool_config"] == expected_tool_config
+
+    @pytest.mark.asyncio
+    async def test_async_is_concurrent(
+        self, mocker: Any, model: ChatLlamaStack
+    ) -> None:
+        """
+        ChatLlamaStack's _generate is used for all sync and async calls. It is
+        implemented using a sync LlamaStackClient.
+
+        We test that ainvoke and astream calls are run concurrently.
+
+        We accomplish this by patching LlamaStackClient's inference.chat_completion
+        method to sleep for 1/5 second, starting 5 async calls, and making sure they
+        all finish in less than 1/4 seconds.
+        """
+        import asyncio
+        import time
+
+        def sleepy_chat_completion(*args: Any, **kwargs: Any) -> ChatCompletionResponse:
+            time.sleep(1 / 5)
+            return ChatCompletionResponse(
+                completion_message=CompletionMessage(
+                    role="assistant",
+                    content="hello back!",
+                    stop_reason="end_of_turn",
+                ),
+            )
+
+        mocker.patch(
+            "llama_stack_client.resources.inference.InferenceResource.chat_completion",
+            side_effect=sleepy_chat_completion,
+        )
+
+        async def collect(stream: AsyncIterator) -> list:
+            return [msg async for msg in stream]
+
+        start = time.time()
+        await asyncio.gather(
+            model.ainvoke("Hello, world! (ai0)"),
+            collect(model.astream("Hello, world! (as0)")),
+            model.ainvoke("Hello, world! (ai1)"),
+            collect(model.astream("Hello, world! (as1)")),
+            model.ainvoke("Hello, world! (ai2)"),
+        )
+        assert time.time() - start < 1 / 4
