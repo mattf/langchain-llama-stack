@@ -41,13 +41,12 @@ jobs:
         run: make tests
         working-directory: ${{ matrix.working-directory }}
 
-      # TODO(mf): get a Llama Stack distro to run integration tests
-      # - name: Run integration tests
-      #   env:
-      #     LLAMA_STACK_API_KEY: ${{ secrets.LLAMA_STACK_API_KEY }}
-      #     LLAMA_STACK_BASE_URL: ${{ secrets.LLAMA_STACK_BASE_URL }}
-      #   run: make integration_tests
-      #   working-directory: ${{ matrix.working-directory }}
+      - name: Run integration tests
+        env:
+          LLAMA_STACK_API_KEY: ${{ secrets.LLAMA_STACK_API_KEY }}
+          LLAMA_STACK_BASE_URL: ${{ secrets.LLAMA_STACK_BASE_URL }}
+        run: make integration_tests
+        working-directory: ${{ matrix.working-directory }}
 
 
       - name: Ensure the tests did not create any additional files
