@@ -225,7 +225,7 @@ class ChatLlamaStack(BaseChatModel):
 
             {'random_ints': [83, 19, 91, 46, 75, 33, 28, 41, 59, 12]}
 
-    Image input:  TODO(mf): add support for image inputs
+    Image input:
         .. code-block:: python
 
             import base64
@@ -248,7 +248,7 @@ class ChatLlamaStack(BaseChatModel):
 
         .. code-block:: python
 
-            # TODO: Example output.
+            'The weather in this image is sunny and warm, with a clear blue sky and fluffy white clouds. The sun is shining down on the boardwalk and the grass, casting a warm glow over the entire scene. The air is filled with a gentle breeze that rustles the leaves of the trees and carries the sweet scent of blooming flowers. Overall, the atmosphere is peaceful and serene, inviting the viewer to step into the idyllic world depicted in the image.'
 
     Token usage:
         .. code-block:: python
@@ -670,21 +670,3 @@ class ChatLlamaStack(BaseChatModel):
             "AIMessageChunk"  # AIMessageChunk.type must be "AIMessageChunk"
         )
         yield ChatGenerationChunk(message=AIMessageChunk(**kwargs))
-
-    # TODO: Implement native async streaming.
-    # async def _astream(
-    #     self,
-    #     messages: List[BaseMessage],
-    #     stop: Optional[List[str]] = None,
-    #     run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-    #     **kwargs: Any,
-    # ) -> AsyncIterator[ChatGenerationChunk]:
-
-    # TODO: Implement native async generation.
-    # async def _agenerate(
-    #     self,
-    #     messages: List[BaseMessage],
-    #     stop: Optional[List[str]] = None,
-    #     run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-    #     **kwargs: Any,
-    # ) -> ChatResult:
