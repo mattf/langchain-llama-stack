@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 
@@ -179,14 +180,26 @@ def convert_response(response: ChatCompletionResponse) -> ChatResult:
 
     tool_calls = []
     if response.completion_message.tool_calls:
-        tool_calls = [
-            ToolCall(
-                name=call.tool_name,
-                args=call.arguments,
-                id=call.call_id,
+        for call in response.completion_message.tool_calls:
+            # Llama Stack allows tool call arguments to be either str or dict,
+            # and provides an argument_json optional str.
+            # LangChain only allows dict.
+            # it is assumed Llama Stack str arguments are parsable JSON.
+            if isinstance(call.arguments, dict):
+                args = call.arguments
+            elif isinstance(call.arguments, str):
+                args = json.loads(call.arguments)
+            else:
+                raise ValueError(
+                    f"Unknown tool call arguments type: {type(call.arguments)}"
+                )
+            tool_calls.append(
+                ToolCall(
+                    name=call.tool_name,
+                    args=args,
+                    id=call.call_id,
+                )
             )
-            for call in response.completion_message.tool_calls
-        ]
 
     usage_metadata = {}
     if response.metrics:
