@@ -648,21 +648,3 @@ class ChatLlamaStack(BaseChatModel):
             "AIMessageChunk"  # AIMessageChunk.type must be "AIMessageChunk"
         )
         yield ChatGenerationChunk(message=AIMessageChunk(**kwargs))
-
-    # TODO: Implement native async streaming.
-    # async def _astream(
-    #     self,
-    #     messages: List[BaseMessage],
-    #     stop: Optional[List[str]] = None,
-    #     run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-    #     **kwargs: Any,
-    # ) -> AsyncIterator[ChatGenerationChunk]:
-
-    # TODO: Implement native async generation.
-    # async def _agenerate(
-    #     self,
-    #     messages: List[BaseMessage],
-    #     stop: Optional[List[str]] = None,
-    #     run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
-    #     **kwargs: Any,
-    # ) -> ChatResult:
