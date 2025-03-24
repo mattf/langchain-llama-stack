@@ -19,8 +19,27 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
         }
 
     @property
+    def image_model_params(self) -> dict:
+        return {
+            "model": "meta/llama-3.2-11b-vision-instruct",
+        }
+
+    @property
     def supports_json_mode(self) -> bool:
         return True
+
+    @property
+    def supports_image_inputs(self) -> bool:
+        return True
+
+    @pytest.fixture
+    def image_model(self) -> BaseChatModel:
+        return self.chat_model_class(
+            **{
+                **self.standard_chat_model_params,
+                **self.image_model_params,
+            }
+        )
 
     @pytest.mark.xfail(reason="Does not follow OpenAI tool call wire format")
     def test_tool_message_histories_string_content(self, *args: Any) -> None:
@@ -93,3 +112,24 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
         assert isinstance(ai_msg, dict)
         assert "random_ints" in ai_msg
         assert isinstance(ai_msg["random_ints"], list)
+
+    #
+    # Special handling for image tests -
+    #
+    #  The chat model may not support image inputs and an image model may
+    #  not support all chat features. To address this we introduce a
+    #  new fixture configured for image model tests.
+    #
+    #  It is modeled after https://github.com/langchain-ai/langchain/pull/30395.
+    #
+    #
+    #  To address this we'll override the image tests as xfail and then
+    #  call them directly with the image model fixture.
+
+    @pytest.mark.xfail(reason="Model may not support images")
+    def test_image_inputs(self, image_model: BaseChatModel) -> None:
+        super().test_image_inputs(image_model)
+
+    #
+    # End of special handling of image tests.
+    #

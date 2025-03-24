@@ -34,6 +34,18 @@ from llama_stack_client.types.shared_params import (
     UserMessage as LlamaStackUserMessage,
 )
 from llama_stack_client.types.shared_params.interleaved_content_item import (
+    ImageContentItem as LlamaStackImageContentItem,
+)
+from llama_stack_client.types.shared_params.interleaved_content_item import (
+    ImageContentItemImage as LlamaStackImageContentItemImage,
+)
+from llama_stack_client.types.shared_params.interleaved_content_item import (
+    ImageContentItemImageURL as LlamaStackImageContentItemImageURL,
+)
+from llama_stack_client.types.shared_params.interleaved_content_item import (
+    InterleavedContentItem as LlamaStackInterleavedContentItem,
+)
+from llama_stack_client.types.shared_params.interleaved_content_item import (
     TextContentItem as LlamaStackTextContentItem,
 )
 
@@ -46,7 +58,6 @@ def _convert_content(
     """
     Convert LangChain content to Llama Stack interleaved content.
 
-    TODO(mf): add support for image content
     TODO(mf): validate content schema
 
     Notes:
@@ -60,12 +71,27 @@ def _convert_content(
         LlamaStackInterleavedContent: Llama Stack interleaved content.
     """
     if isinstance(content, list):
-        return [
-            LlamaStackTextContentItem(type="text", text=text)
-            if isinstance(text, str)
-            else LlamaStackTextContentItem(type="text", text=text["text"])
-            for text in content
-        ]
+        ls_content = []
+        for item in content:
+            if isinstance(item, str):
+                ls_item: LlamaStackInterleavedContentItem = LlamaStackTextContentItem(
+                    type="text", text=item
+                )
+            elif text := item.get("text", None):
+                ls_item = LlamaStackTextContentItem(type="text", text=text)
+            elif image_url := item.get("image_url", None):
+                assert isinstance(image_url, dict), "image_url must be a dict"
+                assert "url" in image_url, "image_url must have a 'url' key"
+                ls_item = LlamaStackImageContentItem(
+                    type="image",
+                    image=LlamaStackImageContentItemImage(
+                        url=LlamaStackImageContentItemImageURL(uri=image_url["url"]),
+                    ),
+                )
+            else:
+                raise ValueError(f"Unknown content item: {item}")
+            ls_content.append(ls_item)
+        return ls_content
 
     # content is a string
     return content
