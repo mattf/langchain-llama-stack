@@ -20,7 +20,7 @@ disallow_untyped_defs = "True"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
-langchain-core = "^0.3.44"
+langchain-core = "^0.3.47"
 llama-stack-client = "^0.1.8"
 
 [tool.ruff.lint]
