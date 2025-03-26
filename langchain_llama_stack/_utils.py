@@ -161,7 +161,7 @@ def convert_message(message: BaseMessage) -> LlamaStackMessage:
         raise ValueError(f"Unknown message type: {type(message)}")
 
 
-def convert_response(response: ChatCompletionResponse) -> ChatResult:
+def convert_response(model_name: str, response: ChatCompletionResponse) -> ChatResult:
     if isinstance(response.completion_message.content, str):
         content: str | list[str | dict] = response.completion_message.content
     elif isinstance(response.completion_message.content, list):
@@ -171,6 +171,7 @@ def convert_response(response: ChatCompletionResponse) -> ChatResult:
         ]
 
     response_metadata: dict[str, Any] = {
+        "model_name": model_name,
         "stop_reason": response.completion_message.stop_reason,
     }
     if response.logprobs:
