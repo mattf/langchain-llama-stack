@@ -427,7 +427,7 @@ class ChatLlamaStack(BaseChatModel):
             response_format=response_format if response_format else NOT_GIVEN,
         )
 
-        return convert_response(response)
+        return convert_response(self.model_name, response)
 
     # TODO(mf): remove after https://github.com/langchain-ai/langchain/discussions/30324
     def with_structured_output(
