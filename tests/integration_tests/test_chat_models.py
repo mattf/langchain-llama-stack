@@ -15,7 +15,7 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
     @property
     def chat_model_params(self) -> dict:
         return {
-            "model": "meta/llama-3.1-8b-instruct",
+            "model": "meta/llama-3.1-70b-instruct",
         }
 
     @property
