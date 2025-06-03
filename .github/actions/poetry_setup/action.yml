@@ -1,10 +1,10 @@
-# An action for setting up poetry install with caching.
+# An action for setting up poetry install without caching.
 # Using a custom action since the default action does not
 # take poetry install groups into account.
 # Action code from:
 # https://github.com/actions/setup-python/issues/505#issuecomment-1273013236
-name: poetry-install-with-caching
-description: Poetry install with support for caching of dependency groups.
+name: poetry-install-without-caching
+description: Poetry install without support for caching of dependency groups.
 
 inputs:
   python-version:
@@ -32,17 +32,6 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - uses: actions/cache@v4
-      id: cache-bin-poetry
-      name: Cache Poetry binary - Python ${{ inputs.python-version }}
-      env:
-        SEGMENT_DOWNLOAD_TIMEOUT_MIN: "1"
-      with:
-        path: |
-          /opt/pipx/venvs/poetry
-        # This step caches the poetry installation, so make sure it's keyed on the poetry version as well.
-        key: bin-poetry-${{ runner.os }}-${{ runner.arch }}-py-${{ inputs.python-version }}-${{ inputs.poetry-version }}
-
     - name: Install poetry
       shell: bash
       env:
@@ -50,17 +39,3 @@ runs:
         PYTHON_VERSION: ${{ inputs.python-version }}
       # Install poetry using the python version installed by setup-python step.
       run: pipx install "poetry==$POETRY_VERSION" --python '${{ steps.setup-python.outputs.python-path }}' --verbose
-
-    - name: Restore pip and poetry cached dependencies
-      uses: actions/cache@v4
-      env:
-        SEGMENT_DOWNLOAD_TIMEOUT_MIN: "4"
-        WORKDIR: ${{ inputs.working-directory == '' && '.' || inputs.working-directory }}
-      with:
-        path: |
-          ~/.cache/pip
-          ~/.cache/pypoetry/virtualenvs
-          ~/.cache/pypoetry/cache
-          ~/.cache/pypoetry/artifacts
-          ${{ env.WORKDIR }}/.venv
-        key: py-deps-${{ runner.os }}-${{ runner.arch }}-py-${{ inputs.python-version }}-poetry-${{ inputs.poetry-version }}-${{ inputs.cache-key }}-${{ hashFiles(format('{0}/**/poetry.lock', env.WORKDIR)) }}
