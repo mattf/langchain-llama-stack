@@ -44,7 +44,6 @@ runs:
         key: bin-poetry-${{ runner.os }}-${{ runner.arch }}-py-${{ inputs.python-version }}-${{ inputs.poetry-version }}
 
     - name: Install poetry
-      if: steps.cache-bin-poetry.outputs.cache-hit != 'true'
       shell: bash
       env:
         POETRY_VERSION: ${{ inputs.poetry-version }}
