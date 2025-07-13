@@ -78,8 +78,48 @@ def _convert_content(
                 ls_item: LlamaStackInterleavedContentItem = LlamaStackTextContentItem(
                     type="text", text=item
                 )
-            elif text := item.get("text", None):
-                ls_item = LlamaStackTextContentItem(type="text", text=text)
+            elif type_ := item.get("type", None):
+                if type_ == "text":
+                    if "text" not in item:
+                        raise ValueError("text type must have 'text' key")
+                    ls_item = LlamaStackTextContentItem(type="text", text=item["text"])
+                elif type_ == "image_url":
+                    if "image_url" not in item:
+                        raise ValueError("image_url type must have 'image_url' key")
+                    if not isinstance(item["image_url"], dict):
+                        raise ValueError("image_url must be a dict")
+                    if "url" not in item["image_url"]:
+                        raise ValueError("image_url must have 'url' key")
+                    ls_item = LlamaStackImageContentItem(
+                        type="image",
+                        image=LlamaStackImageContentItemImage(
+                            url=LlamaStackImageContentItemImageURL(
+                                uri=item["image_url"]["url"]
+                            )
+                        ),
+                    )
+                elif type_ == "image":
+                    if "source_type" not in item:
+                        raise ValueError("image type must have 'source_type' key")
+                    if item["source_type"] != "base64":
+                        raise ValueError(
+                            "image source_type must be 'base64', "
+                            f"got {item['source_type']}"
+                        )
+                    if "data" not in item:
+                        raise ValueError("image type must have 'data' key")
+                    if "mime_type" not in item:
+                        raise ValueError("image type must have 'mime_type' key")
+                    ls_item = LlamaStackImageContentItem(
+                        type="image",
+                        image=LlamaStackImageContentItemImage(
+                            url=LlamaStackImageContentItemImageURL(
+                                uri=f"data:{item['mime_type']};base64,{item['data']}"
+                            ),
+                        ),
+                    )
+                else:
+                    raise ValueError(f"Unknown content type: {type_}")
             elif image_url := item.get("image_url", None):
                 assert isinstance(image_url, dict), "image_url must be a dict"
                 assert "url" in image_url, "image_url must have a 'url' key"
