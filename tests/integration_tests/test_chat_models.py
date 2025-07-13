@@ -15,13 +15,13 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
     @property
     def chat_model_params(self) -> dict:
         return {
-            "model": "meta/llama-3.1-70b-instruct",
+            "model": "meta-llama/Llama-3.3-70B-Instruct",
         }
 
     @property
     def image_model_params(self) -> dict:
         return {
-            "model": "meta/llama-3.2-11b-vision-instruct",
+            "model": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
         }
 
     @property
