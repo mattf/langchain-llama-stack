@@ -78,6 +78,7 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
         # ]
         super().test_structured_few_shot_examples(*args)
 
+    @pytest.mark.xfail(reason=("Not all models / endpoints support logprobs"))
     def test_logprobs(self, model: BaseChatModel) -> None:
         logprobs_llm = model.bind(logprobs=True)
         ai_msg = logprobs_llm.invoke("Hello, how are you?")
