@@ -13,7 +13,6 @@ on:
         description: "Relative path to the langchain library folder"
 
 env:
-  POETRY_VERSION: "1.7.1"
   WORKDIR: ${{ inputs.working-directory == '' && '.' || inputs.working-directory }}
 
   # This env var allows us to get inline annotations when ruff has complaints.
@@ -38,36 +37,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }} + Poetry ${{ env.POETRY_VERSION }}
-        uses: "./.github/actions/poetry_setup"
+      - name: Set up Python ${{ matrix.python-version }} + uv
+        uses: "./.github/actions/setup"
         with:
           python-version: ${{ matrix.python-version }}
-          poetry-version: ${{ env.POETRY_VERSION }}
           working-directory: ${{ inputs.working-directory }}
           cache-key: lint-with-extras
 
-      - name: Check Poetry File
+      - name: Check uv lock file
         shell: bash
         working-directory: ${{ inputs.working-directory }}
         run: |
-          poetry check
-
-      - name: Check lock file
-        shell: bash
-        working-directory: ${{ inputs.working-directory }}
-        run: |
-          poetry lock --check
+          uv lock --check
 
       - name: Install dependencies
         # Also installs dev/lint/test/typing dependencies, to ensure we have
         # type hints for as many of our libraries as possible.
         #
         # If you change this configuration, make sure to change the `cache-key`
-        # in the `poetry_setup` action above to stop using the old cache.
+        # in the `setup` action above to stop using the old cache.
         # It doesn't matter how you change it, any change will cause a cache-bust.
         working-directory: ${{ inputs.working-directory }}
         run: |
-          poetry install --with lint,typing
+          uv sync --group lint --group typing
 
       - name: Install langchain editable
         working-directory: ${{ inputs.working-directory }}
@@ -75,7 +67,7 @@ jobs:
         env:
           LANGCHAIN_LOCATION: ${{ inputs.langchain-location }}
         run: |
-          poetry run pip install -e "$LANGCHAIN_LOCATION"
+          uv pip install -e "$LANGCHAIN_LOCATION"
 
       - name: Get .mypy_cache to speed up mypy
         uses: actions/cache@v4
@@ -84,18 +76,18 @@ jobs:
         with:
           path: |
             ${{ env.WORKDIR }}/.mypy_cache
-          key: mypy-lint-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-${{ inputs.working-directory }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}
+          key: mypy-lint-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-${{ inputs.working-directory }}-${{ hashFiles(format('{0}/uv.lock', inputs.working-directory)) }}
 
       - name: Install unit test dependencies
         # Also installs dev/lint/test/typing dependencies, to ensure we have
         # type hints for as many of our libraries as possible.
         #
         # If you change this configuration, make sure to change the `cache-key`
-        # in the `poetry_setup` action above to stop using the old cache.
+        # in the `setup` action above to stop using the old cache.
         # It doesn't matter how you change it, any change will cause a cache-bust.
         working-directory: ${{ inputs.working-directory }}
         run: |
-          poetry install --with test
+          uv sync --group test
 
       - name: Analysing the code with our lint
         working-directory: ${{ inputs.working-directory }}
@@ -105,7 +97,7 @@ jobs:
       - name: Install unit+integration test dependencies
         working-directory: ${{ inputs.working-directory }}
         run: |
-          poetry install --with test,test_integration
+          uv sync --group test --group test_integration
 
       - name: Get .mypy_cache_test to speed up mypy
         uses: actions/cache@v4
@@ -114,7 +106,7 @@ jobs:
         with:
           path: |
             ${{ env.WORKDIR }}/.mypy_cache_test
-          key: mypy-test-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-${{ inputs.working-directory }}-${{ hashFiles(format('{0}/poetry.lock', inputs.working-directory)) }}
+          key: mypy-test-${{ runner.os }}-${{ runner.arch }}-py${{ matrix.python-version }}-${{ inputs.working-directory }}-${{ hashFiles(format('{0}/uv.lock', inputs.working-directory)) }}
 
       - name: Analysing the code with our lint
         working-directory: ${{ inputs.working-directory }}

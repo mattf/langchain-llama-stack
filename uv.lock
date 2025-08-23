@@ -424,6 +424,15 @@ test = [
     { name = "pytest-socket" },
     { name = "pytest-watcher" },
 ]
+test-integration = [
+    { name = "langchain-tests" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-benchmark" },
+    { name = "pytest-mock" },
+    { name = "pytest-socket" },
+    { name = "pytest-watcher" },
+]
 typing = [
     { name = "mypy" },
 ]
@@ -450,6 +459,15 @@ dev = [
 ]
 lint = [{ name = "ruff", specifier = ">=0.5" }]
 test = [
+    { name = "langchain-tests", specifier = ">=0.3.16" },
+    { name = "pytest", specifier = ">=7.4.3" },
+    { name = "pytest-asyncio", specifier = ">=0.23.2" },
+    { name = "pytest-benchmark", specifier = ">=4.0.0" },
+    { name = "pytest-mock", specifier = ">=3.14.0" },
+    { name = "pytest-socket", specifier = ">=0.7.0" },
+    { name = "pytest-watcher", specifier = ">=0.3.4" },
+]
+test-integration = [
     { name = "langchain-tests", specifier = ">=0.3.16" },
     { name = "pytest", specifier = ">=7.4.3" },
     { name = "pytest-asyncio", specifier = ">=0.23.2" },

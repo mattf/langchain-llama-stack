@@ -28,9 +28,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
   cancel-in-progress: true
 
-env:
-  POETRY_VERSION: "1.7.1"
-
 jobs:
   lint:
     name: "-"

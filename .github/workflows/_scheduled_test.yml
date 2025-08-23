@@ -6,9 +6,6 @@ on:
   schedule:
     - cron:  '0 8 * * *'
 
-env:
-  POETRY_VERSION: "1.7.1"
-
 jobs:
   build:
     name: Python ${{ matrix.python-version }} - ${{ matrix.working-directory }}
@@ -25,16 +22,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python + Poetry ${{ env.POETRY_VERSION }}
-        uses: "./.github/actions/poetry_setup"
+      - name: Set up Python + uv
+        uses: "./.github/actions/setup"
         with:
           python-version: ${{ matrix.python-version }}
-          poetry-version: ${{ env.POETRY_VERSION }}
           working-directory: ${{ matrix.working-directory }}
           cache-key: scheduled
 
       - name: Install dependencies
-        run: poetry install --with test,test_integration
+        run: uv sync --group test --group test_integration
         working-directory: ${{ matrix.working-directory }}
 
       - name: Run unit tests
