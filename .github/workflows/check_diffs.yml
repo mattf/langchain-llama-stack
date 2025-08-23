@@ -33,27 +33,17 @@ jobs:
       dirs-to-lint: ${{ steps.set-matrix.outputs.dirs-to-lint }}
       dirs-to-test: ${{ steps.set-matrix.outputs.dirs-to-test }}
   lint:
-    name: cd ${{ matrix.working-directory }}
+    name: "lint"
     needs: [ build ]
     if: ${{ needs.build.outputs.dirs-to-lint != '[]' }}
-    strategy:
-      matrix:
-        working-directory: ${{ fromJson(needs.build.outputs.dirs-to-lint) }}
     uses: ./.github/workflows/_lint.yml
-    with:
-      working-directory: ${{ matrix.working-directory }}
     secrets: inherit
 
   test:
-    name: cd ${{ matrix.working-directory }}
+    name: "test"
     needs: [ build ]
     if: ${{ needs.build.outputs.dirs-to-test != '[]' }}
-    strategy:
-      matrix:
-        working-directory: ${{ fromJson(needs.build.outputs.dirs-to-test) }}
     uses: ./.github/workflows/_test.yml
-    with:
-      working-directory: ${{ matrix.working-directory }}
     secrets: inherit
 
   ci_success:
