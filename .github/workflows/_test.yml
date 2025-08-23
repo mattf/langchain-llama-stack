@@ -2,11 +2,6 @@ name: test
 
 on:
   workflow_call:
-    inputs:
-      langchain-location:
-        required: false
-        type: string
-        description: "Relative path to the langchain library folder"
 
 jobs:
   build:
@@ -29,13 +24,6 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: uv sync --group test
-
-      - name: Install langchain editable
-        if: ${{ inputs.langchain-location }}
-        env:
-          LANGCHAIN_LOCATION: ${{ inputs.langchain-location }}
-        run: |
-          uv pip install -e "$LANGCHAIN_LOCATION"
 
       - name: Run core tests
         shell: bash
