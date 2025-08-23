@@ -2,11 +2,6 @@ name: lint
 
 on:
   workflow_call:
-    inputs:
-      langchain-location:
-        required: false
-        type: string
-        description: "Relative path to the langchain library folder"
 
 env:
   WORKDIR: "."
@@ -53,13 +48,6 @@ jobs:
         # It doesn't matter how you change it, any change will cause a cache-bust.
         run: |
           uv sync --group lint --group typing --group codespell
-
-      - name: Install langchain editable
-        if: ${{ inputs.langchain-location }}
-        env:
-          LANGCHAIN_LOCATION: ${{ inputs.langchain-location }}
-        run: |
-          uv pip install -e "$LANGCHAIN_LOCATION"
 
       - name: Get .mypy_cache to speed up mypy
         uses: actions/cache@v4
