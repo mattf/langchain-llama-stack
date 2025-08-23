@@ -440,7 +440,7 @@ class ChatLlamaStack(BaseChatModel):
         include_raw: bool = False,
         **kwargs: Any,
     ) -> Runnable[LanguageModelInput, Union[Dict, BaseModel]]:
-        # method handling is complext -
+        # method handling is complex -
         #  method = function_calling is effectively the default, because
         #   the default with_structured_output will call bind_tools to setup
         #   the structured output
