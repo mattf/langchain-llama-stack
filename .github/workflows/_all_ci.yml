@@ -3,19 +3,7 @@ name: Full CI
 
 on:
   workflow_call:
-    inputs:
-      working-directory:
-        required: true
-        type: string
-        description: "From which folder this pipeline executes"
   workflow_dispatch:
-    inputs:
-      working-directory:
-        required: true
-        type: choice
-        default: '.'
-        options:
-        - '.'
 
 
 # If another push to the same PR or branch happens while this workflow is still running,
@@ -25,20 +13,16 @@ on:
 # a limited number of job runners to be active at the same time, so it's better to cancel
 # pointless jobs early so that more useful jobs can run sooner.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   lint:
     name: "-"
     uses: ./.github/workflows/_lint.yml
-    with:
-      working-directory: ${{ inputs.working-directory }}
     secrets: inherit
 
   test:
     name: "-"
     uses: ./.github/workflows/_test.yml
-    with:
-      working-directory: ${{ inputs.working-directory }}
     secrets: inherit

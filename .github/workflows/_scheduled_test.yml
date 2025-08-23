@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Python ${{ matrix.python-version }} - ${{ matrix.working-directory }}
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -16,8 +16,6 @@ jobs:
         python-version:
           - "3.12"
           - "3.13"
-        working-directory:
-          - "."
 
     steps:
       - uses: actions/checkout@v4
@@ -26,27 +24,21 @@ jobs:
         uses: "./.github/actions/setup"
         with:
           python-version: ${{ matrix.python-version }}
-          working-directory: ${{ matrix.working-directory }}
           cache-key: scheduled
 
       - name: Install dependencies
         run: uv sync --group test --group test_integration
-        working-directory: ${{ matrix.working-directory }}
 
       - name: Run unit tests
         run: make tests
-        working-directory: ${{ matrix.working-directory }}
 
       - name: Run integration tests
         env:
           LLAMA_STACK_API_KEY: ${{ secrets.LLAMA_STACK_API_KEY }}
           LLAMA_STACK_BASE_URL: ${{ secrets.LLAMA_STACK_BASE_URL }}
         run: make integration_tests
-        working-directory: ${{ matrix.working-directory }}
-
 
       - name: Ensure the tests did not create any additional files
-        working-directory: ${{ matrix.working-directory }}
         run: |
           set -eu
 

@@ -11,10 +11,6 @@ inputs:
     description: Cache key to use for manual handling of caching
     required: true
 
-  working-directory:
-    description: Directory whose uv.lock file should be cached
-    required: true
-
 runs:
   using: composite
   steps:
@@ -28,13 +24,13 @@ runs:
       uses: astral-sh/setup-uv@v4
       with:
         enable-cache: true
-        cache-dependency-glob: "${{ inputs.working-directory }}/uv.lock"
+        cache-dependency-glob: uv.lock
 
     - name: Set up uv cache
       uses: actions/cache@v4
       with:
         path: ~/.cache/uv
-        key: uv-${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}-${{ inputs.cache-key }}-${{ hashFiles(format('{0}/uv.lock', inputs.working-directory)) }}
+        key: uv-${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}-${{ inputs.cache-key }}-${{ hashFiles('./uv.lock') }}
         restore-keys: |
           uv-${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}-${{ inputs.cache-key }}-
           uv-${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}-
