@@ -52,7 +52,7 @@ jobs:
         # in the `setup` action above to stop using the old cache.
         # It doesn't matter how you change it, any change will cause a cache-bust.
         run: |
-          uv sync --group lint --group typing
+          uv sync --group lint --group typing --group codespell
 
       - name: Install langchain editable
         if: ${{ inputs.langchain-location }}
@@ -100,3 +100,7 @@ jobs:
       - name: Analysing the code with our lint
         run: |
           make lint_tests
+
+      - name: Check spelling with codespell
+        run: |
+          make spell_check
