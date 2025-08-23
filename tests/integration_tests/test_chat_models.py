@@ -1,5 +1,6 @@
 from typing import Any, Type, cast
 
+import llama_stack_client
 import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_tests.integration_tests import ChatModelIntegrationTests
@@ -40,6 +41,38 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
                 **self.image_model_params,
             }
         )
+
+    #
+    # handling test_tool_call_with_no_arguments -
+    #
+    # we know it will fail for Llama API, so we skip that case.
+    # we want it to fail otherwise.
+    #
+    # the standard tests have a DO_NOT_OVERRIDE without xfail requirement.
+    # so we mark the test as xfail and create a copy that only skips the
+    # known issue w/ Llama API.
+    #
+
+    @pytest.mark.xfail(reason="Llama API does not support argument-less functions")
+    def test_tool_calling_with_no_arguments(self, model: BaseChatModel) -> None:
+        super().test_tool_calling_with_no_arguments(model)
+
+    def test_tool_calling_with_no_arguments_(self, model: BaseChatModel) -> None:
+        try:
+            super().test_tool_calling_with_no_arguments(model)
+        except llama_stack_client.BadRequestError as e:
+            message = str(e)
+            if (
+                "schema constraint" in message
+                and "required" in message
+                and "tools.0.function" in message
+            ):
+                pytest.skip(
+                    "Llama API (https://www.llama.com/products/llama-api/) "
+                    "does not support argument-less functions"
+                )
+            else:
+                raise
 
     @pytest.mark.xfail(reason="Does not follow OpenAI tool call wire format")
     def test_tool_message_histories_string_content(self, *args: Any) -> None:
