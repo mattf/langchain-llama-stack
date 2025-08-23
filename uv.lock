@@ -440,7 +440,7 @@ typing = [
 [package.metadata]
 requires-dist = [
     { name = "langchain-core", specifier = ">=0.3.47" },
-    { name = "llama-stack-client", specifier = ">=0.1.8" },
+    { name = "llama-stack-client", specifier = ">=0.1.18" },
 ]
 
 [package.metadata.requires-dev]
