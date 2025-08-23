@@ -28,9 +28,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.working-directory }}
   cancel-in-progress: true
 
-env:
-  POETRY_VERSION: "1.7.1"
-
 jobs:
   lint:
     name: "-"
@@ -42,13 +39,6 @@ jobs:
   test:
     name: "-"
     uses: ./.github/workflows/_test.yml
-    with:
-      working-directory: ${{ inputs.working-directory }}
-    secrets: inherit
-
-  compile-integration-tests:
-    name: "-"
-    uses: ./.github/workflows/_compile_integration_test.yml
     with:
       working-directory: ${{ inputs.working-directory }}
     secrets: inherit

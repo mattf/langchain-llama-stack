@@ -1,73 +1,64 @@
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
+[project]
 name = "langchain-llama-stack"
 version = "0.1.0"
 description = "An integration package connecting LlamaStack and LangChain"
 authors = []
 readme = "README.md"
-repository = "https://github.com/langchain-ai/langchain"
 license = "MIT"
+requires-python = ">=3.12"
+
+dependencies = [
+    "langchain-core>=0.3.47",
+    "llama-stack-client>=0.1.18",
+]
+
+[project.urls]
+"Source Code" = "https://github.com/mattf/langchain-llama-stack"
+"Release Notes" = "https://github.com/mattf/langchain-llama-stack/releases"
+
+[dependency-groups]
+test = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.23.2",
+    "pytest-socket>=0.7.0",
+    "pytest-watcher>=0.3.4",
+    "langchain-tests>=0.3.16",
+    "pytest-mock>=3.14.0",
+    "pytest-benchmark>=4.0.0",
+]
+test_integration = [
+    { include-group = "test" },
+]
+codespell = [
+    "codespell>=2.2.6",
+]
+lint = [
+    "ruff>=0.5",
+]
+typing = [
+    "mypy>=1.10",
+]
+dev = [
+    { include-group = "test" },
+    { include-group = "codespell" },
+    { include-group = "lint" },
+    { include-group = "typing" },
+]
 
 [tool.mypy]
 disallow_untyped_defs = "True"
 
-[tool.poetry.urls]
-"Source Code" = "https://github.com/mattf/langchain-llama-stack"
-"Release Notes" = "https://github.com/mattf/langchain-llama-stack/releases"
-
-[tool.poetry.dependencies]
-python = ">=3.9,<4.0"
-langchain-core = "^0.3.47"
-llama-stack-client = "^0.1.8"
+[tool.ruff]
+exclude = ["docs/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "T201"]
 
-[tool.coverage.run]
-omit = ["tests/*"]
-
 [tool.pytest.ini_options]
 addopts = "--strict-markers --strict-config --durations=5"
-markers = [
-    "compile: mark placeholder test used to compile integration tests without running them",
-]
+markers = []
 asyncio_mode = "auto"
-
-[tool.poetry.group.test]
-optional = true
-
-[tool.poetry.group.codespell]
-optional = true
-
-[tool.poetry.group.test_integration]
-optional = true
-
-[tool.poetry.group.lint]
-optional = true
-
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-
-[tool.poetry.group.test.dependencies]
-pytest = "^7.4.3"
-pytest-asyncio = "^0.23.2"
-pytest-socket = "^0.7.0"
-pytest-watcher = "^0.3.4"
-langchain-tests = "^0.3.16"
-pytest-mock = "^3.14.0"
-
-[tool.poetry.group.codespell.dependencies]
-codespell = "^2.2.6"
-
-[tool.poetry.group.test_integration.dependencies]
-
-[tool.poetry.group.lint.dependencies]
-ruff = "^0.5"
-
-[tool.poetry.group.typing.dependencies]
-mypy = "^1.10"

@@ -1,0 +1,40 @@
+# An action for setting up uv with Python and dependency installation
+name: setup
+description: Setup uv with Python and install dependencies
+
+inputs:
+  python-version:
+    description: Python version, supporting MAJOR.MINOR only
+    required: true
+
+  cache-key:
+    description: Cache key to use for manual handling of caching
+    required: true
+
+  working-directory:
+    description: Directory whose uv.lock file should be cached
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      name: Setup python ${{ inputs.python-version }}
+      id: setup-python
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+        cache-dependency-glob: "${{ inputs.working-directory }}/uv.lock"
+
+    - name: Set up uv cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: uv-${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}-${{ inputs.cache-key }}-${{ hashFiles(format('{0}/uv.lock', inputs.working-directory)) }}
+        restore-keys: |
+          uv-${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}-${{ inputs.cache-key }}-
+          uv-${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}-
