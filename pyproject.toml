@@ -9,7 +9,7 @@ description = "An integration package connecting LlamaStack and LangChain"
 authors = []
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 
 dependencies = [
     "langchain-core>=0.3.47",
