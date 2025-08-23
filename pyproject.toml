@@ -60,7 +60,5 @@ select = ["E", "F", "I", "T201"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --strict-config --durations=5"
-markers = [
-    "compile: mark placeholder test used to compile integration tests without running them",
-]
+markers = []
 asyncio_mode = "auto"

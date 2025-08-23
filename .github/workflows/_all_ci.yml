@@ -42,10 +42,3 @@ jobs:
     with:
       working-directory: ${{ inputs.working-directory }}
     secrets: inherit
-
-  compile-integration-tests:
-    name: "-"
-    uses: ./.github/workflows/_compile_integration_test.yml
-    with:
-      working-directory: ${{ inputs.working-directory }}
-    secrets: inherit
