@@ -36,6 +36,8 @@ jobs:
         env:
           LLAMA_STACK_API_KEY: ${{ secrets.LLAMA_STACK_API_KEY }}
           LLAMA_STACK_BASE_URL: ${{ secrets.LLAMA_STACK_BASE_URL }}
+          LLAMA_STACK_CLIENT_API_KEY: ${{ secrets.LLAMA_STACK_API_KEY }}
+          LLAMA_STACK_CLIENT_BASE_URL: ${{ secrets.LLAMA_STACK_BASE_URL }}
         run: make integration_tests
 
       - name: Ensure the tests did not create any additional files
