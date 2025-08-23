@@ -24,27 +24,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - id: files
-        uses: Ana06/get-changed-files@v2.2.0
-      - id: set-matrix
-        run: |
-          python .github/scripts/check_diff.py ${{ steps.files.outputs.all }} >> $GITHUB_OUTPUT
-    outputs:
-      dirs-to-lint: ${{ steps.set-matrix.outputs.dirs-to-lint }}
-      dirs-to-test: ${{ steps.set-matrix.outputs.dirs-to-test }}
   lint:
-    name: "lint"
     needs: [ build ]
-    if: ${{ needs.build.outputs.dirs-to-lint != '[]' }}
     uses: ./.github/workflows/_lint.yml
-    secrets: inherit
 
   test:
-    name: "test"
     needs: [ build ]
-    if: ${{ needs.build.outputs.dirs-to-test != '[]' }}
     uses: ./.github/workflows/_test.yml
-    secrets: inherit
 
   ci_success:
     name: "CI Success"
