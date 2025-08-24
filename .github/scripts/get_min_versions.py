@@ -4,7 +4,7 @@ import tomllib
 
 from packaging.version import parse as parse_version
 
-MIN_VERSION_LIBS = ["langchain-core"]
+MIN_VERSION_LIBS = ["langchain-openai"]
 
 
 def get_min_version(version: str) -> str:

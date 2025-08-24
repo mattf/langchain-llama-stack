@@ -1,4 +1,4 @@
-from typing import Any, Type, cast
+from typing import Type, cast
 
 import llama_stack_client
 import pytest
@@ -41,75 +41,6 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
                 **self.image_model_params,
             }
         )
-
-    #
-    # handling test_tool_call_with_no_arguments -
-    #
-    # we know it will fail for Llama API, so we skip that case.
-    # we want it to fail otherwise.
-    #
-    # the standard tests have a DO_NOT_OVERRIDE without xfail requirement.
-    # so we mark the test as xfail and create a copy that only skips the
-    # known issue w/ Llama API.
-    #
-
-    @pytest.mark.xfail(reason="Llama API does not support argument-less functions")
-    def test_tool_calling_with_no_arguments(self, model: BaseChatModel) -> None:
-        super().test_tool_calling_with_no_arguments(model)
-
-    def test_tool_calling_with_no_arguments_(self, model: BaseChatModel) -> None:
-        try:
-            super().test_tool_calling_with_no_arguments(model)
-        except llama_stack_client.BadRequestError as e:
-            message = str(e)
-            if (
-                "schema constraint" in message
-                and "required" in message
-                and "tools.0.function" in message
-            ):
-                pytest.skip(
-                    "Llama API (https://www.llama.com/products/llama-api/) "
-                    "does not support argument-less functions"
-                )
-            else:
-                raise
-
-    @pytest.mark.xfail(reason="Does not follow OpenAI tool call wire format")
-    def test_tool_message_histories_string_content(self, *args: Any) -> None:
-        super().test_tool_message_histories_string_content(*args)
-
-    @pytest.mark.xfail(reason=("Does not follow Anthropic wire format"))
-    def test_tool_message_histories_list_content(self, *args: Any) -> None:
-        super().test_tool_message_histories_list_content(*args)
-
-    @pytest.mark.xfail(reason=("Does not support tool call status"))
-    def test_tool_message_error_status(self, *args: Any) -> None:
-        super().test_tool_message_error_status(*args)
-
-    @pytest.mark.xfail(reason=("Does not follow OpenAI tool call wire format"))
-    def test_structured_few_shot_examples(self, *args: Any) -> None:
-        # need to support messages = [
-        #   HumanMessage(content='What is 1 + 2', ...),
-        #   AIMessage(content='',
-        #             tool_calls=[{'name': 'my_adder_tool',
-        #                          'args': {'a': 1, 'b': 2},
-        #                          'id': 'id0',
-        #                          'type': 'tool_call'}],
-        #             additional_kwargs={
-        #               'tool_calls': [{
-        #                 'id': 'id0',
-        #                 'type': 'function',
-        #                 'function': {
-        #                   'name': 'my_adder_tool',
-        #                   'arguments': '{"a":1,"b":2}'}}
-        #               ]},
-        #             ...)
-        #   ToolMessage(content='{"result": 3}',
-        #               tool_call_id='id0'),
-        #   AIMessage(content='{"result": 3}', ...),
-        #   HumanMessage(content='What is 3 + 4', ...)
-        # ]
-        super().test_structured_few_shot_examples(*args)
 
     @pytest.mark.xfail(reason=("Not all models / endpoints support logprobs"))
     def test_logprobs(self, model: BaseChatModel) -> None:

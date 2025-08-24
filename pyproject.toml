@@ -4,16 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "langchain-llama-stack"
-version = "0.1.0"
-description = "An integration package connecting LlamaStack and LangChain"
+version = "0.2.0"
+description = "An integration package connecting Llama Stack and LangChain"
 authors = []
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
 
 dependencies = [
-    "langchain-core>=0.3.47",
-    "llama-stack-client>=0.1.18",
+    "langchain-openai>=0.3.31",
 ]
 
 [project.urls]
