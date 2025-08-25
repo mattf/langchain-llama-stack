@@ -48,8 +48,10 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
         super().test_usage_metadata_streaming(model)
 
     @pytest.mark.xfail(
-        reason=("not all models / endpoints support json schema/pydantic handling "
-                 "during fallback")
+        reason=(
+            "not all models / endpoints support json schema/pydantic handling "
+            "during fallback"
+        )
     )
     def test_structured_output_pydantic_2_v1(self, model: BaseChatModel) -> None:
         super().test_structured_output_pydantic_2_v1(model)
