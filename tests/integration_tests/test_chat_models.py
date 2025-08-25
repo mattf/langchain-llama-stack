@@ -1,4 +1,4 @@
-from typing import Type, cast
+from typing import Any, Type, cast
 
 import pytest
 from langchain_core.language_models import BaseChatModel
@@ -40,6 +40,27 @@ class TestChatLlamaStackIntegration(ChatModelIntegrationTests):
                 **self.image_model_params,
             }
         )
+
+    @pytest.mark.xfail(
+        reason="not all models / endpoints support usage metadata (streaming)"
+    )
+    def test_usage_metadata_streaming(self, model: BaseChatModel) -> None:
+        super().test_usage_metadata_streaming(model)
+
+    @pytest.mark.xfail(
+        reason=("not all models / endpoints support json schema/pydantic handling "
+                 "during fallback")
+    )
+    def test_structured_output_pydantic_2_v1(self, model: BaseChatModel) -> None:
+        super().test_structured_output_pydantic_2_v1(model)
+
+    @pytest.mark.xfail(reason="not all models / endpoints support optional params")
+    def test_structured_output_optional_param(self, model: BaseChatModel) -> None:
+        super().test_structured_output_optional_param(model)
+
+    @pytest.mark.xfail(reason="not all models / endpoints support histories")
+    def test_tool_message_histories_string_content(self, *args: Any) -> None:
+        super().test_tool_message_histories_string_content(*args)
 
     @pytest.mark.xfail(reason=("Not all models / endpoints support logprobs"))
     def test_logprobs(self, model: BaseChatModel) -> None:
