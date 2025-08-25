@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "langchain-llama-stack"
-version = "0.2.0"
+version = "0.2.1+pre.0"
 description = "An integration package connecting Llama Stack and LangChain"
 authors = []
 readme = "README.md"
