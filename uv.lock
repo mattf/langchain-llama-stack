@@ -286,7 +286,7 @@ wheels = [
 
 [[package]]
 name = "langchain-llama-stack"
-version = "0.2.1a2"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "langchain-openai" },
