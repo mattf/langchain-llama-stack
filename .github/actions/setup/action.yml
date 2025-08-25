@@ -9,7 +9,6 @@ inputs:
 
   cache-key:
     description: Cache key to use for manual handling of caching
-  required: false
   default: ""
 
 runs:
