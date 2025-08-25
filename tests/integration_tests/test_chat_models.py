@@ -1,6 +1,5 @@
 from typing import Type, cast
 
-import llama_stack_client
 import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_tests.integration_tests import ChatModelIntegrationTests
