@@ -217,7 +217,6 @@ jobs:
         uses: "./.github/actions/setup"
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache-key: release
 
       - uses: actions/download-artifact@v4
         with:

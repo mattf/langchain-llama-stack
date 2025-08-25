@@ -9,7 +9,8 @@ inputs:
 
   cache-key:
     description: Cache key to use for manual handling of caching
-    required: true
+  required: false
+  default: ""
 
 runs:
   using: composite
@@ -27,6 +28,7 @@ runs:
         cache-dependency-glob: uv.lock
 
     - name: Set up uv cache
+      if: ${{ inputs.cache-key != '' }}
       uses: actions/cache@v4
       with:
         path: ~/.cache/uv
