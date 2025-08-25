@@ -1,70 +1,13 @@
 """Llama Stack chat models."""
 
-import logging
-from operator import itemgetter
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Literal,
-    Optional,
-    Sequence,
-    Union,
-)
+import os
+from typing import Any
 
-import httpx
-from langchain_core.callbacks import (
-    CallbackManagerForLLMRun,
-)
-from langchain_core.language_models import BaseChatModel, LanguageModelInput
-from langchain_core.messages import (
-    AIMessageChunk,
-    BaseMessage,
-)
-from langchain_core.output_parsers import (
-    JsonOutputParser,
-    PydanticOutputParser,
-)
-from langchain_core.output_parsers.base import OutputParserLike
-from langchain_core.outputs import ChatGenerationChunk, ChatResult
-from langchain_core.runnables import Runnable, RunnableMap, RunnablePassthrough
-from langchain_core.tools import BaseTool
-from langchain_core.utils.function_calling import convert_to_json_schema
-from langchain_core.utils.pydantic import is_basemodel_subclass
-from llama_stack_client import NOT_GIVEN, Client
-from llama_stack_client.types import (
-    ChatCompletionResponse,
-)
-from llama_stack_client.types.inference_chat_completion_params import (
-    Tool as LlamaStackTool,
-)
-from llama_stack_client.types.inference_chat_completion_params import (
-    ToolConfig as LlamaStackToolConfig,
-)
-from llama_stack_client.types.inference_completion_params import (
-    Logprobs as LlamaStackLogprobs,
-)
-from llama_stack_client.types.shared_params import (
-    SamplingParams,
-)
-from llama_stack_client.types.shared_params.sampling_params import (
-    StrategyGreedySamplingStrategy,
-    StrategyTopPSamplingStrategy,
-)
-from llama_stack_client.types.shared_params.tool_param_definition import (
-    ToolParamDefinition as LlamaStackToolParamDefinition,
-)
-from pydantic import BaseModel, Field, SecretStr, model_validator
-
-from langchain_llama_stack._utils import convert_message, convert_response
-
-logger = logging.getLogger(__name__)
+from langchain_openai import ChatOpenAI
+from pydantic import Field, SecretStr
 
 
-class ChatLlamaStack(BaseChatModel):
+class ChatLlamaStack(ChatOpenAI):
     """
     Llama Stack chat model integration.
 
@@ -75,7 +18,7 @@ class ChatLlamaStack(BaseChatModel):
 
             pip install -U langchain-llama-stack
             export LLAMA_STACK_API_KEY="your-api-key"
-            export LLAMA_STACK_BASE_URL="http://my-llama-stack-disto:8321
+            export LLAMA_STACK_BASE_URL="http://my-llama-stack-disto:8321/v1/openai/v1
 
     Key init args — completion params:
         model: str
@@ -289,384 +232,33 @@ class ChatLlamaStack(BaseChatModel):
 
     """  # noqa: E501
 
-    model_name: str = Field(alias="model")
-    """The name of the model"""
-    base_url: str | httpx.URL | None = None
+    openai_api_base: str | None = Field(
+        alias="base_url",
+        default_factory=lambda: os.environ.get(
+            "LLAMA_STACK_BASE_URL", "http://localhost:8321/v1/openai/v1"
+        ),
+    )
     "Loaded from LLAMA_STACK_BASE_URL environment variable if not provided."
-    api_key: SecretStr | None = None
+    openai_api_key: SecretStr | None = Field(
+        alias="api_key",
+        default_factory=lambda: SecretStr(
+            os.environ.get("LLAMA_STACK_API_KEY", "NO_API_KEY")
+        ),
+    )
     "Loaded from LLAMA_STACK_API_KEY environment variable if not provided."
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    timeout: Optional[int] = None
-    max_retries: Optional[int] = None
-
-    client: Client | None = Field(default=None, exclude=True)
-    """Internal Llama Stack client"""
-
-    @model_validator(mode="after")
-    def _initialize_client(self) -> "ChatLlamaStack":
-        """Initialize the Llama Stack client with configuration parameters."""
-        params: dict[str, Any] = {
-            "base_url": self.base_url,
-            "api_key": self.api_key.get_secret_value() if self.api_key else None,
-            "timeout": self.timeout,
-            "max_retries": self.max_retries,
-        }
-        params = {k: v for k, v in params.items() if v is not None}
-        self.client = Client(**params)
-        return self
 
     @property
     def _llm_type(self) -> str:
         """Return type of chat model."""
-        return "chat-llama-stack"
+        return "llama-stack-chat"
 
     @property
     def _identifying_params(self) -> dict[str, Any]:
-        """Return a dictionary of identifying parameters.
-
-        This information is used by the LangChain callback system, which
-        is used for tracing purposes make it possible to monitor LLMs.
-        """
         return {
-            # The model name allows users to specify custom token counting
-            # rules in LLM monitoring applications (e.g., in LangSmith users
-            # can provide per token pricing for their model and monitor
-            # costs for the given LLM.)
             "model_name": self.model_name,
         }
 
     @classmethod
     def is_lc_serializable(cls) -> bool:
         """Return whether this model can be serialized by LangChain."""
-        return True
-
-    @property
-    def lc_secrets(self) -> Dict[str, str]:
-        """Return a map of constructor argument names to secret ids."""
-        return {"api_key": "LLAMA_STACK_API_KEY"}
-
-    @property
-    def lc_attributes(self) -> Dict:
-        """Return additional attributes that should be included in serialization."""
-        return {
-            k: v
-            for k, v in {
-                "model": self.model_name,  # to match constructor name
-                "base_url": self.base_url,
-            }.items()
-            if v is not None
-        }
-
-    def _get_sampling_params(
-        self, **kwargs: Any
-    ) -> tuple[Optional[SamplingParams], Any]:
-        """
-        Get the sampling parameters.
-
-        TODO(mf): allow kwargs to override the model's settings
-        """
-        sampling_params: SamplingParams | None = None
-        if self.max_tokens is not None or self.temperature is not None:
-            sampling_params = SamplingParams(
-                strategy=StrategyGreedySamplingStrategy(type="greedy"),
-            )
-            if self.max_tokens is not None:
-                sampling_params["max_tokens"] = self.max_tokens
-            # Llama Stack Inference API does now allow temperature=0,
-            # we convert that to Greedy Sampling by not changing the
-            # sampling strategy.
-            if self.temperature is not None and self.temperature > 0:
-                sampling_params["strategy"] = StrategyTopPSamplingStrategy(
-                    type="top_p",
-                    temperature=self.temperature,
-                )
-        return sampling_params, kwargs
-
-    def _generate(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        logprobs: Optional[bool | int] = None,
-        tools: Optional[Iterable[LlamaStackTool]] = None,
-        tool_config: Optional[LlamaStackToolConfig] = None,
-        **kwargs: Any,
-    ) -> ChatResult:
-        """
-        Generate a response to the input messages.
-
-        Args:
-            messages: the prompt composed of a list of messages.
-            stop: this parameter is not supported
-            run_manager: A run manager with callbacks for the LLM.
-        """
-        assert self.client is not None, "client not initialized"  # satisfy mypy
-
-        if stop:
-            logging.warning(
-                "ignoring stop words, not supported by Llama Stack Inference API"
-            )
-
-        sampling_params, kwargs = self._get_sampling_params(**kwargs)
-
-        # when generating for structured output, the response_format param
-        # may be bound.
-        response_format = kwargs.pop("response_format", None)
-
-        if kwargs:
-            logging.warning(f"ignoring extra kwargs: {kwargs}")
-
-        response: ChatCompletionResponse = self.client.inference.chat_completion(
-            model_id=self.model_name,
-            messages=[convert_message(message) for message in messages],
-            sampling_params=sampling_params if sampling_params else NOT_GIVEN,
-            logprobs=LlamaStackLogprobs(top_k=logprobs) if logprobs else NOT_GIVEN,
-            tools=tools if tools else NOT_GIVEN,
-            tool_config=tool_config if tool_config else NOT_GIVEN,
-            response_format=response_format if response_format else NOT_GIVEN,
-        )
-
-        return convert_response(self.model_name, response)
-
-    # TODO(mf): remove after https://github.com/langchain-ai/langchain/discussions/30324
-    def with_structured_output(
-        self,
-        schema: Optional[Union[Dict, type]] = None,  # Optional to match OpenAI
-        *,
-        method: Literal[
-            "function_calling", "json_mode", "json_schema"
-        ] = "function_calling",  # method to match OpenAI
-        include_raw: bool = False,
-        **kwargs: Any,
-    ) -> Runnable[LanguageModelInput, Union[Dict, BaseModel]]:
-        # method handling is complex -
-        #  method = function_calling is effectively the default, because
-        #   the default with_structured_output will call bind_tools to setup
-        #   the structured output
-        #  method = json_schema is supported by Llama Stack's Inference API
-        #  method = json_mode has two meanings, for OpenAI (the de facto standard)
-        #   it means the structured output is a JSON object, unconstrained by
-        #   a schema. however, LangChain only appears to do json_model with
-        #   a schema. this means we can map LangChain method=json_mode to
-        #   method=json_schema w/ schema being optional.
-        #
-        # we want to rely on BaseChatModel as much as possible, so we will
-        # let it handle the method = function_calling case. we will handle
-        # the method = json_schema / json_mode case.
-        if (method == "json_schema" or method == "function_calling") and schema is None:
-            raise ValueError(
-                "schema is required when method is json_schema or function_calling"
-            )
-
-        if method == "json_schema" or method == "json_mode":
-            llm: Runnable = self
-            if schema:
-                json_schema = convert_to_json_schema(schema)
-                llm = self.bind(
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": json_schema,
-                    },
-                )
-
-            #
-            # NOTE - this is derived from BaseChatModel.with_structured_output
-            #
-            if isinstance(schema, type) and is_basemodel_subclass(schema):
-                output_parser: OutputParserLike = PydanticOutputParser(
-                    pydantic_object=schema
-                )
-            else:
-                output_parser = JsonOutputParser()
-            if include_raw:
-                parser_assign = RunnablePassthrough.assign(
-                    parsed=itemgetter("raw") | output_parser,
-                    parsing_error=lambda _: None,
-                )
-                parser_none = RunnablePassthrough.assign(parsed=lambda _: None)
-                parser_with_fallback = parser_assign.with_fallbacks(
-                    [parser_none], exception_key="parsing_error"
-                )
-                return RunnableMap(raw=llm) | parser_with_fallback
-            else:
-                return llm | output_parser
-            #
-            # end of code take from BaseChatModel.with_structured_output
-            #
-
-        return super().with_structured_output(schema, include_raw=include_raw, **kwargs)  # type: ignore
-
-    def bind_tools(
-        self,
-        tools: Sequence[Union[Dict[str, Any], type, Callable, BaseTool]],
-        **kwargs: Any,
-    ) -> Runnable[LanguageModelInput, BaseMessage]:
-        """
-        Bind tools to the chat model.
-
-        Notes:
-         - tool_choice="any" does not guarantee that tools will be used
-
-        Args:
-            tools: List of tools to bind to the chat model.
-            tool_choice: Optional hint to model on how to use tools. Values are -
-              - "any" / "auto": let the model decide
-              - "required": tools are required
-              - "none": do not use tools
-              - other string: name of tool to use
-
-        Returns:
-            A new chat model with the tools bound.
-        """
-        #
-        # we convert the tools to JSON schema, convert the JSON schema to
-        # Llama Stack tool objects, and then bind the Llama Stack tools to
-        # the chat model.
-        #
-
-        ls_tools = []
-        for tool in tools:
-            json_schema = convert_to_json_schema(tool)
-            assert "title" in json_schema, "missing title (tool's name): {json_schema}"
-            if "description" not in json_schema:
-                logging.warning(f"missing description for tool: {json_schema['title']}")
-            parameters: dict[str, LlamaStackToolParamDefinition] = {}
-            if "properties" in json_schema:
-                #
-                # {
-                #   "type": "object",
-                #   "properties": {
-                #     "location": {
-                #       "type": "string",
-                #       "description": "The city and state, e.g. Somerville, MA"
-                #     },
-                #     "rank": {
-                #       "type": "integer",
-                #       "description": "Rank of the location",
-                #       "exclusiveMaximum": 100,
-                #       "exclusiveMinimum": 0
-                #     }
-                #     "unit": {
-                #       "type": "string",
-                #       "enum": ["celsius", "fahrenheit"]
-                #     }
-                #   },
-                #   "required": ["location"]
-                # }
-                #
-                # becomes
-                #
-                # [
-                #   ToolParamDefinition(
-                #     name="location",
-                #     type="string",
-                #     description="The city and state, e.g. Somerville, MA",
-                #     required=True
-                #   ),
-                #   ToolParamDefinition(
-                #     name="rank",
-                #     type="integer",
-                #     description="Rank of the location",
-                #     required=False
-                #   ),
-                #   ToolParamDefinition(
-                #     name="unit",
-                #     type="string",
-                #     description="The unit of temperature",
-                #     required=False
-                #   )
-                # ]
-                #
-                # TODO(mf): JSON schema can have limits, e.g. int lt/gt or enum for
-                #           value, Llama Stack Inference API does not support these
-                # TODO(mf): Llama Stack Inference API supports a default value, but
-                #           the input JSON schema does not
-                #
-                required = json_schema.get("required", [])
-                parameters = {}
-                for name, param in json_schema.get("properties", {}).items():
-                    # to get type information we want to do -
-                    #  param_type = param["type"]
-                    # however, the type may be a union and appear as -
-                    #  'anyOf': [{'type': 'string'}, {'type': 'null'}]
-                    # so we need to check for "type" and "anyOf".
-                    # if we find "anyOf" we can remove {"type": "null"}
-                    # and concatenate the rest.
-                    # there's also the possibility of oneOf and allOf. tbd.
-                    if "type" in param:
-                        param_type = param["type"]
-                    elif "anyOf" in param and isinstance(param["anyOf"], list):
-                        param_type = " | ".join(
-                            [
-                                any_of["type"]
-                                for any_of in param["anyOf"]
-                                if any_of["type"] != "null"
-                            ]
-                        )
-                    else:
-                        raise ValueError(f"missing type for parameter: {name}: {param}")
-                    if "description" not in param:
-                        logging.warning(
-                            f"missing description for parameter: {name}: {param}"
-                        )
-                    parameters[name] = LlamaStackToolParamDefinition(
-                        param_type=param_type,
-                        default=param.get("default", None),
-                        description=param.get("description", ""),
-                        required=name in required,
-                    )
-            ls_tools.append(
-                LlamaStackTool(
-                    tool_name=json_schema["title"],
-                    description=json_schema.get("description", ""),
-                    parameters=parameters,
-                )
-            )
-
-        ls_tool_config: Optional[LlamaStackToolConfig] = None
-        if tool_choice := kwargs.pop("tool_choice", None):
-            if tool_choice == "any":  # LangChain apps tend to use "any"
-                tool_choice = "auto"
-            # for compatibility with OpenAI's
-            #  tool_choice={"type": "function", "function": {"name": name}}
-            if (
-                isinstance(tool_choice, dict)
-                and tool_choice.get("type", None) == "function"
-                and (name := tool_choice.get("function", {}).get("name", None))
-            ):
-                tool_choice = name
-            ls_tool_config = LlamaStackToolConfig(tool_choice=tool_choice)
-
-        # see https://github.com/langchain-ai/langchain/issues/30249
-        extra = {}
-        if "ls_structured_output_format" in kwargs:
-            extra["ls_structured_output_format"] = kwargs.pop(
-                "ls_structured_output_format"
-            )
-
-        if kwargs:
-            logging.warning(f"ignoring extra kwargs: {kwargs}")
-
-        return self.bind(tools=ls_tools, tool_config=ls_tool_config, **extra)
-
-    # TODO: Implement native _stream.
-    def _stream(
-        self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[CallbackManagerForLLMRun] = None,
-        **kwargs: Any,
-    ) -> Iterator[ChatGenerationChunk]:
-        # when _stream is not implemented, BaseChatModel.stream will call invoke and
-        # _generate without appropriately using the run_manager or returning a *Chunk
-        # instance. this results in standard streaming tests failing. by calling
-        # _generate directly, we can ensure BaseChatModel.stream does all its regular
-        # streaming work and control the return type.
-        result = self._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-        assert result.generations, "no generations in result"
-        kwargs = result.generations[0].message.model_dump()
-        kwargs["type"] = (
-            "AIMessageChunk"  # AIMessageChunk.type must be "AIMessageChunk"
-        )
-        yield ChatGenerationChunk(message=AIMessageChunk(**kwargs))
+        return False
