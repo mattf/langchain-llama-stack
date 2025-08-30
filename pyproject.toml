@@ -25,7 +25,7 @@ test = [
     "pytest-asyncio>=0.23.2",
     "pytest-socket>=0.7.0",
     "pytest-watcher>=0.3.4",
-    "langchain-tests>=0.3.16",
+    "langchain-tests>=0.3.21",  # for tool_message_histories_string_content arg type fix
     "pytest-mock>=3.14.0",
     "pytest-benchmark>=4.0.0",
 ]
