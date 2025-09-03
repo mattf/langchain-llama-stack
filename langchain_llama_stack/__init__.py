@@ -1,6 +1,12 @@
 from importlib import metadata
 
 from langchain_llama_stack.chat_models import ChatLlamaStack
+from langchain_llama_stack.safety import (
+    LlamaStackModerationTool,
+    LlamaStackSafety,
+    LlamaStackSafetyTool,
+    SafetyResult,
+)
 
 # from langchain_llama_stack.document_loaders import LlamaStackLoader
 # from langchain_llama_stack.embeddings import LlamaStackEmbeddings
@@ -18,6 +24,10 @@ del metadata  # optional, avoids polluting the results of dir(__package__)
 
 __all__ = [
     "ChatLlamaStack",
+    "LlamaStackSafety",
+    "SafetyResult",
+    "LlamaStackSafetyTool",
+    "LlamaStackModerationTool",
     # "LlamaStackVectorStore",
     # "LlamaStackEmbeddings",
     # "LlamaStackLoader",
