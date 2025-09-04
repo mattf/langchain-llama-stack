@@ -1,12 +1,8 @@
 from importlib import metadata
 
 from langchain_llama_stack.chat_models import ChatLlamaStack
-from langchain_llama_stack.safety import (
-    LlamaStackModerationTool,
-    LlamaStackSafety,
-    LlamaStackSafetyTool,
-    SafetyResult,
-)
+from langchain_llama_stack.safety import LlamaStackSafety
+from langchain_llama_stack.types import SafetyResult
 
 # from langchain_llama_stack.document_loaders import LlamaStackLoader
 # from langchain_llama_stack.embeddings import LlamaStackEmbeddings
@@ -26,8 +22,19 @@ __all__ = [
     "ChatLlamaStack",
     "LlamaStackSafety",
     "SafetyResult",
-    "LlamaStackSafetyTool",
-    "LlamaStackModerationTool",
+    "HookManager",
+    "HookContext",
+    "SafetyEvent",
+    "SafetyHook",
+    "ViolationLoggerHook",
+    "ErrorHandlerHook",
+    "MetricsHook",
+    "ContentPreprocessorHook",
+    "CustomValidationHook",
+    "create_logger_hook",
+    "create_metrics_hook",
+    "create_content_filter_hook",
+    "create_custom_validation_hook",
     # "LlamaStackVectorStore",
     # "LlamaStackEmbeddings",
     # "LlamaStackLoader",

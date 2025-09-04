@@ -11,17 +11,9 @@ import os
 import sys
 
 # Add the package to Python path for development
-sys.path.insert(
-    0,
-    "/home/omara/langchain_llamastack_integration/langchain-llama-stack/langchain-llama-stack",
-)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from langchain_llama_stack import (
-    LlamaStackModerationTool,
-    LlamaStackSafety,
-    LlamaStackSafetyTool,
-    SafetyResult,
-)
+from langchain_llama_stack import LlamaStackSafety, SafetyResult
 
 
 def print_section(title):
@@ -103,55 +95,11 @@ def main():
                 score = violation.get("score", "N/A")
                 print(f"  - Category: {category}, Flagged: {flagged}, Score: {score}")
     except Exception as e:
-        print(f"⚠️  Moderation failed (expected if no Llama Stack server): {e}")
-
-    # LangChain Tool Integration
-    print_section("4. LangChain Tool Integration")
-
-    # Create LangChain tools
-    safety_tool = LlamaStackSafetyTool(safety_client=safety)
-    moderation_tool = LlamaStackModerationTool(safety_client=safety)
-
-    print(f"✓ Safety tool name: {safety_tool.name}")
-    print(f"✓ Safety tool description: {safety_tool.description}")
-    print(f"✓ Moderation tool name: {moderation_tool.name}")
-    print(f"✓ Moderation tool description: {moderation_tool.description}")
-
-    # Use the tools directly
-    test_content = "Hello, this is a test message for the tools."
-    print(f"\nTesting tools with: {test_content}")
-
-    try:
-        # Run safety check tool
-        safety_result = safety_tool._run(test_content)
-        print(f"✓ Safety tool result: {safety_result}")
-
-        # Run moderation tool
-        moderation_result = moderation_tool._run(test_content)
-        print(f"✓ Moderation tool result: {moderation_result}")
-    except Exception as e:
-        print(f"⚠️  Tool execution failed (expected if no Llama Stack server): {e}")
-
-    # Working with SafetyResult Objects
-    print_section("5. SafetyResult Objects")
-
-    # Create custom SafetyResult
-    custom_result = SafetyResult(
-        is_safe=False,
-        violations=[
-            {"category": "hate", "score": 0.8, "flagged": True},
-            {"category": "violence", "score": 0.3, "flagged": False},
-        ],
-        confidence_score=0.85,
-        explanation="Content flagged for potential hate speech.",
-    )
-
-    print(f"✓ Custom result: {custom_result}")
-    print(f"✓ As dict: {custom_result.dict()}")
+        print(f"Moderation failed (expected if no Llama Stack server): {e}")
 
     # Check if content is safe
     if not custom_result.is_safe:
-        print("\n⚠️  Content requires review:")
+        print("\n Content requires review:")
         for violation in custom_result.violations:
             if violation.get("flagged", False):
                 print(f"  - {violation['category']}: {violation['score']}")
@@ -217,35 +165,20 @@ async def async_demo():
         moderation_result = await safety.amoderate_content(content)
         print(f"✓ Async moderation - Is safe: {moderation_result.is_safe}")
 
-        # Async tool usage
-        safety_tool = LlamaStackSafetyTool(safety_client=safety)
-        moderation_tool = LlamaStackModerationTool(safety_client=safety)
-
-        test_content = "This is an async tool test."
-
-        # Async safety tool
-        safety_result = await safety_tool._arun(test_content)
-        print(f"✓ Async safety tool result: {safety_result}")
-
-        # Async moderation tool
-        moderation_result = await moderation_tool._arun(test_content)
-        print(f"✓ Async moderation tool result: {moderation_result}")
-
     except Exception as e:
-        print(f"⚠️  Async operations failed (expected if no Llama Stack server): {e}")
+        print(f"Async operations failed (expected if no Llama Stack server): {e}")
 
 
 def summary():
     """Print summary."""
     print_section("Summary")
 
-    print("🎉 LlamaStackSafety provides:")
+    print("LlamaStackSafety provides:")
     print()
     print(
         "1. **Direct safety and moderation APIs** - check_content_safety() and moderate_content()"
     )
     print("2. **Async support** - acheck_content_safety() and amoderate_content()")
-    print("3. **LangChain integration** - Tool wrappers for use with agents")
     print("4. **Flexible configuration** - Local and remote server support")
     print("5. **Error handling** - Fail-safe behavior when APIs are unavailable")
     print("6. **Structured results** - SafetyResult objects with detailed information")
@@ -253,7 +186,7 @@ def summary():
     print("This makes it easy to integrate Llama Stack's safety capabilities")
     print("into any Python application or LangChain workflow.")
     print()
-    print("📝 Note: To use with an actual Llama Stack server:")
+    print("Note: To use with an actual Llama Stack server:")
     print("   1. Start a Llama Stack server on http://localhost:8321")
     print("   2. Configure it with safety shields (e.g., llama_guard)")
     print("   3. Re-run this script to see live safety checks")
@@ -267,9 +200,9 @@ if __name__ == "__main__":
     try:
         asyncio.run(async_demo())
     except Exception as e:
-        print(f"⚠️  Async demo failed: {e}")
+        print(f" Async demo failed: {e}")
 
     # Print summary
     summary()
 
-    print(f"\n✅ Demo completed! All components are working correctly.")
+    print(f"\n Demo completed! All components are working correctly.")

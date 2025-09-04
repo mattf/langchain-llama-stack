@@ -5,16 +5,9 @@ from typing import Any, Dict, List, Optional
 
 from langchain_core.tools import BaseTool
 from llama_stack_client import AsyncLlamaStackClient, LlamaStackClient
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-
-class SafetyResult(BaseModel):
-    """Result from safety check."""
-
-    is_safe: bool
-    violations: List[Dict[str, Any]] = []
-    confidence_score: Optional[float] = None
-    explanation: Optional[str] = None
+from .types import SafetyResult
 
 
 class LlamaStackSafety:
@@ -393,117 +386,3 @@ class LlamaStackSafety:
                 violations=[],
                 explanation=f"Async moderation failed: {str(e)}",
             )
-
-
-class LlamaStackSafetyTool(BaseTool):
-    """
-    LangChain tool wrapper for LlamaStackSafety.
-
-    This tool requires a properly configured LlamaStackSafety instance
-    that points to a running Llama Stack server.
-
-    Example:
-        .. code-block:: python
-
-            from langchain_llama_stack import LlamaStackSafety, LlamaStackSafetyTool
-
-            # Configure safety client to point to Llama Stack server
-            safety_client = LlamaStackSafety(
-                base_url="http://localhost:8321",  # Your Llama Stack server URL
-                shield_type="llama_guard"
-            )
-
-            # Create the LangChain tool
-            safety_tool = LlamaStackSafetyTool(safety_client=safety_client)
-
-            # Use with LangChain agents
-            from langchain.agents import initialize_agent
-            tools = [safety_tool]
-            agent = initialize_agent(tools, llm)
-    """
-
-    name: str = "llama_stack_safety"
-    description: str = "Check content safety using Llama Stack shields"
-    safety_client: LlamaStackSafety = Field(...)
-
-    class Config:
-        arbitrary_types_allowed = True
-
-    def _run(self, content: str) -> str:
-        """Run the safety check."""
-        result = self.safety_client.check_content_safety(content)
-        if result.is_safe:
-            return f"Content is SAFE. Confidence: {result.confidence_score or 'N/A'}"
-        else:
-            violations = [v.get("category", "unknown") for v in result.violations]
-            return f"Content is UNSAFE. Violations: {', '.join(violations)}"
-
-    async def _arun(self, content: str) -> str:
-        """Async run the safety check."""
-        result = await self.safety_client.acheck_content_safety(content)
-        if result.is_safe:
-            return f"Content is SAFE. Confidence: {result.confidence_score or 'N/A'}"
-        else:
-            violations = [v.get("category", "unknown") for v in result.violations]
-            return f"Content is UNSAFE. Violations: {', '.join(violations)}"
-
-
-class LlamaStackModerationTool(BaseTool):
-    """
-    LangChain tool wrapper for LlamaStackSafety moderation.
-
-    This tool requires a properly configured LlamaStackSafety instance
-    that points to a running Llama Stack server.
-
-    Example:
-        .. code-block:: python
-
-            from langchain_llama_stack import LlamaStackSafety, LlamaStackModerationTool
-
-            # Configure safety client to point to Llama Stack server
-            safety_client = LlamaStackSafety(
-                base_url="http://localhost:8321",  # Your Llama Stack server URL
-                moderation_model="llama_guard"
-            )
-
-            # Create the LangChain tool
-            moderation_tool = LlamaStackModerationTool(safety_client=safety_client)
-
-            # Use with LangChain agents
-            from langchain.agents import initialize_agent
-            tools = [moderation_tool]
-            agent = initialize_agent(tools, llm)
-    """
-
-    name: str = "llama_stack_moderation"
-    description: str = "Moderate content using Llama Stack moderation"
-    safety_client: LlamaStackSafety = Field(...)
-
-    class Config:
-        arbitrary_types_allowed = True
-
-    def _run(self, content: str) -> str:
-        """Run the moderation check."""
-        result = self.safety_client.moderate_content(content)
-        if result.is_safe:
-            return "Content passed moderation checks"
-        else:
-            violations = [
-                f"{v.get('category', 'unknown')} (score: {v.get('score', 'N/A')})"
-                for v in result.violations
-                if v.get("flagged", False)
-            ]
-            return f"Content flagged for: {', '.join(violations)}"
-
-    async def _arun(self, content: str) -> str:
-        """Async run the moderation check."""
-        result = await self.safety_client.amoderate_content(content)
-        if result.is_safe:
-            return "Content passed moderation checks"
-        else:
-            violations = [
-                f"{v.get('category', 'unknown')} (score: {v.get('score', 'N/A')})"
-                for v in result.violations
-                if v.get("flagged", False)
-            ]
-            return f"Content flagged for: {', '.join(violations)}"
