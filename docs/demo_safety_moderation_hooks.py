@@ -181,25 +181,6 @@ def demo_safe_llm_usage(safe_llm):
             print(f"Error: {e}")
 
 
-def demo_performance_benefits():
-    """Show the performance benefits of the approach."""
-    print("\n📊 Performance Benefits")
-    print("=" * 50)
-
-    print("Efficient 2-Hook Approach:")
-    print("├── Input Check (safety via run_shield)  (API call 1)")
-    print("├── LLM Generation")
-    print("└── Output Check (safety via run_shield) (API call 2)")
-    print("Total: 2 API calls to LlamaStack")
-
-    print("\n🎯 Benefits:")
-    print("✅ Clean and simple architecture")
-    print("✅ Comprehensive safety protection")
-    print("✅ Uses LlamaStack's run_shield efficiently")
-    print("✅ Minimal API calls")
-    print("✅ Easy to understand and maintain")
-
-
 def demo_error_handling():
     """Demo error handling and fallback behavior."""
     print("\n🔥 Error Handling Demo")
@@ -271,7 +252,7 @@ def demo_agent_safety():
         def mock_calculator(query: str) -> str:
             """A simple calculator tool."""
             try:
-                # Simple arithmetic evaluation (be careful in production!)
+                # Simple arithmetic evaluation
                 if any(op in query for op in ["+", "-", "*", "/", "(", ")"]):
                     result = eval(query.strip())
                     return f"Result: {result}"
