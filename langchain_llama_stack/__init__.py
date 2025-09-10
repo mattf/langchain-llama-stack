@@ -27,4 +27,5 @@ __all__ = [
     # "LlamaStackVectorStore",
     # "LlamaStackEmbeddings",
     # "LlamaStackTelemetry",
+    # "LlamaStackLoader",
 ]
