@@ -12,11 +12,7 @@ Key features:
 """
 from langchain_llama_stack import ChatLlamaStack, LlamaStackSafety
 from langchain_llama_stack.input_output_safety_moderation_hooks import (
-    create_input_only_safe_llm,
-    create_output_only_safe_llm,
     create_safe_llm,
-    create_safe_llm_with_all_hooks,
-    create_safety_hook,
     SafeLLMWrapper,
 )
 
@@ -36,11 +32,6 @@ def demo_safety_client():
     """Demo the LlamaStackSafety client."""
     print("🛡️ LlamaStack Safety Client Demo")
     print("=" * 50)
-
-    # safety = LlamaStackSafety(
-    #     base_url="http://localhost:8321", shield_type="content_safety"
-    # )
-
     safety = LlamaStackSafety(
         base_url="http://localhost:8321", shield_type="content_safety"
     )
@@ -81,28 +72,16 @@ def demo_factory_functions():
     # if the model is not available locally, the list of available
     # models will be printed
     llm = ChatLlamaStack(model="ollama/llama3:70b-instruct")
-    # You can set your shield by setting shield_type="ollama/llama-guard3:8b"
+    # You can set your shield by setting shield_type="llama-guard"
     safety = LlamaStackSafety(shield_type="content_safety")
 
     print("\n1. Complete Protection (Recommended)")
     print("-" * 40)
     safe_llm = create_safe_llm(llm, safety)
-    print("✅ Created LLM with both input and output protection")
+    print("✅ Created LLM with output protection")
     print("   - Input Hook: Checks user input safety")
     print("   - Output Hook: Checks model output safety")
     print("   - API Calls: Only 2")
-
-    print("\n2. Input Only Protection")
-    print("-" * 40)
-    _ = create_input_only_safe_llm(llm, safety)  # Create but don't need to use
-    print("✅ Created LLM with input protection only")
-    print("   - Use case: Filter user queries, trust model outputs")
-
-    print("\n3. Output Only Protection")
-    print("-" * 40)
-    _ = create_output_only_safe_llm(llm, safety)  # Create but don't need to use
-    print("✅ Created LLM with output protection only")
-    print("   - Use case: Trust user inputs, filter model responses")
 
     print("\n4. Configurable Protection")
     print("-" * 40)
@@ -114,28 +93,40 @@ def demo_factory_functions():
 
 
 def demo_manual_configuration():
-    """Demo manual hook configuration for advanced users."""
-    print("\n🔧 Manual Hook Configuration Demo")
+    """Demo manual hook configuration using create_safe_llm parameters."""
+    print("\n Manual Hook Configuration Demo")
     print("=" * 50)
 
     llm = ChatLlamaStack()
     safety = LlamaStackSafety()
 
-    # Manual approach for full control
-    safe_llm = SafeLLMWrapper(llm, safety)
+    print("✅ Different safety configurations using create_safe_llm:")
 
-    # Create and set hooks individually
-    input_hook = create_safety_hook(safety, "input")
-    output_hook = create_safety_hook(safety, "output")
+    # Input only
+    safe_llm_input = create_safe_llm(llm, safety, input_check=True, output_check=False)
+    print(
+        "   - Input only: create_safe_llm(llm, safety, input_check=True, output_check=False)"
+    )
 
-    safe_llm.set_input_hook(input_hook)
-    safe_llm.set_output_hook(output_hook)
+    # Output only
+    safe_llm_output = create_safe_llm(llm, safety, input_check=False, output_check=True)
+    print(
+        "   - Output only: create_safe_llm(llm, safety, input_check=False, output_check=True)"
+    )
 
-    print("✅ Created SafeLLMWrapper with manual hook configuration")
-    print("   - Input Hook: Custom input validation")
-    print("   - Output Hook: Custom output validation")
+    # Both enabled (default)
+    safe_llm_both = create_safe_llm(llm, safety, input_check=True, output_check=True)
+    print(
+        "   - Both hooks: create_safe_llm(llm, safety, input_check=True, output_check=True)"
+    )
 
-    return safe_llm
+    # No protection
+    safe_llm_none = create_safe_llm(llm, safety, input_check=False, output_check=False)
+    print(
+        "   - No protection: create_safe_llm(llm, safety, input_check=False, output_check=False)"
+    )
+
+    return safe_llm_both
 
 
 def demo_safe_llm_usage(safe_llm):
@@ -174,35 +165,6 @@ def demo_safe_llm_usage(safe_llm):
             print(f"Error: {e}")
 
 
-def demo_error_handling():
-    """Demo error handling and fallback behavior."""
-    print("\n Error Handling Demo")
-    print("=" * 50)
-
-    # Mock safety client that fails
-    class FailingSafetyClient:
-        def check_content_safety(self, content):
-            raise Exception("Safety service unavailable")
-
-    failing_safety = FailingSafetyClient()
-
-    # Test input hook error handling (fails open)
-    print("\n1. Input Hook Error (Fails Open)")
-    print("-" * 40)
-    input_hook = create_safety_hook(failing_safety, "input")
-    result = input_hook("Test input")
-    print(f"Input check failed, but allows: {result.is_safe}")
-    print(f"Explanation: {result.explanation}")
-
-    # Test output hook error handling (fails closed)
-    print("\n2. Output Hook Error (Fails Closed)")
-    print("-" * 40)
-    output_hook = create_safety_hook(failing_safety, "output")
-    result = output_hook("Test output")
-    print(f"Output check failed, blocks: {result.is_safe}")
-    print(f"Explanation: {result.explanation}")
-
-
 def demo_async_support():
     """Demo async support for high-throughput scenarios."""
     print("\n⚡ Async Support Demo")
@@ -236,7 +198,7 @@ def demo_agent_safety():
     print("=" * 50)
 
     if not AGENTS_AVAILABLE:
-        print("⚠️  Agent dependencies not available. Install with:")
+        print("  Agent dependencies not available. Install with:")
         print("   pip install langchain langchain-community google-search-results")
         return
 
@@ -273,6 +235,8 @@ def demo_agent_safety():
         ]
 
         # Create LLM and agent
+        # "ollama/llama3:70b-instruct" was selected for demo purposes.
+        # please select a model that is available throught your provider
         llm = ChatLlamaStack(model="ollama/llama3:70b-instruct")
 
         # Create agent using the tools
@@ -286,27 +250,17 @@ def demo_agent_safety():
         # Create safety client with optimal settings for agents
         safety = LlamaStackSafety(
             base_url="http://localhost:8321",
-            shield_type="prompt-guard",  # Good for prompt injection detection
+            shield_type="content_safety",  # Use available shields like llama-guard
         )
 
-        print("🔧 Creating Safe Agent...")
-        print("   ✨ Optimal Shield Selection:")
-        print(
-            "   - Input Hook: Uses prompt-guard (specialized for prompt injection detection)"
-        )
-        print("   - Output Hook: Uses llama_guard (specialized for content moderation)")
-        print("   - This provides the best protection for each type of content")
+        print("Creating Safe Agent...")
+        print("  Safety Configuration:")
+        print("   - Input Hook: Only enabled if prompt-guard shield is available")
+        print("   - Output Hook: Uses content_safety shield for content moderation")
+        print("   - Provides flexible protection based on available shields")
 
-        # Wrap the agent with safety
-        safe_agent = SafeLLMWrapper(agent, safety)
-
-        # Configure specialized hooks for agents
-        safe_agent.set_input_hook(
-            create_safety_hook(safety, "input")
-        )  # prompt-guard by default
-        safe_agent.set_output_hook(
-            create_safety_hook(safety, "output")
-        )  # llama_guard by default
+        # Wrap the agent with safety using create_safe_llm
+        safe_agent = create_safe_llm(agent, safety, input_check=True, output_check=True)
 
         # Test cases for agents
         test_cases = [
@@ -425,7 +379,6 @@ def main():
         demo_safe_llm_usage(safe_llm)
 
         # Educational demos
-        demo_error_handling()
         demo_async_support()
 
         # Agent safety demo (new feature)
@@ -433,12 +386,6 @@ def main():
         demo_universal_wrapper()
 
         print("\n🎉 Demo completed successfully!")
-        print("\n💡 Key Takeaways:")
-        print("   • Clean 2-hook approach for complete protection")
-        print("   • Uses LlamaStack's run_shield API efficiently")
-        print("   • Simple, maintainable architecture")
-        print("   • Comprehensive safety coverage")
-        print("   • Configurable protection levels")
 
     except Exception as e:
         print(f"\n❌ Demo failed: {e}")
