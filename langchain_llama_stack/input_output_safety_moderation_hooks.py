@@ -177,8 +177,8 @@ def create_safety_hook(
         safety_client: LlamaStackSafety client instance
         hook_type: Type of hook - "input" (fails open) or "output" (fails closed)
         shield_type: Specific shield to use. If None, uses optimal defaults:
-                    - "prompt_guard" for input hooks (prompt injection detection)
-                    - "llama_guard" for output hooks (content moderation)
+                    - "prompt-guard" for input hooks (prompt injection detection)
+                    - "llama-guard" for output hooks (content moderation)
 
     Returns:
         Function that takes content and returns SafetyResult
@@ -187,12 +187,12 @@ def create_safety_hook(
 
     # Use optimal shield defaults based on hook type
     if shield_type is None:
-        shield_type = "prompt_guard" if hook_type == "input" else "llama_guard"
+        shield_type = "prompt-guard" if hook_type == "input" else "llama-guard"
 
     def safety_hook(content: str) -> SafetyResult:
         try:
             # Create a temporary safety client with the specific shield type if different
-            if shield_type != getattr(safety_client, "shield_type", "llama_guard"):
+            if shield_type != getattr(safety_client, "shield_type", "llama-guard"):
                 from .safety import LlamaStackSafety
 
                 temp_client = LlamaStackSafety(
