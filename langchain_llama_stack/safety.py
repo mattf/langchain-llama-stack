@@ -360,7 +360,7 @@ class LlamaStackSafety:
                     else:
                         # Handle object-style metadata
                         for attr in dir(result_metadata):
-                            if not attr.startswith('_'):
+                            if not attr.startswith("_"):
                                 value = getattr(result_metadata, attr)
                                 if not callable(value):
                                     metadata[attr] = value
@@ -372,12 +372,16 @@ class LlamaStackSafety:
 
                     if isinstance(categories, dict):
                         # Dictionary format: {"violence": True, "hate": False, ...}
-                        flagged_categories = [cat for cat, flagged in categories.items() if flagged]
+                        flagged_categories = [
+                            cat for cat, flagged in categories.items() if flagged
+                        ]
                     else:
                         # Object format: result.categories.violence = True
                         flagged_categories = [
-                            attr for attr in dir(categories)
-                            if not attr.startswith('_') and getattr(categories, attr, False)
+                            attr
+                            for attr in dir(categories)
+                            if not attr.startswith("_")
+                            and getattr(categories, attr, False)
                         ]
 
                     # Create violations from flagged categories
@@ -388,11 +392,9 @@ class LlamaStackSafety:
                         else:
                             score = getattr(category_scores, category, None)
 
-                        violations.append({
-                            "category": category,
-                            "score": score,
-                            "flagged": True
-                        })
+                        violations.append(
+                            {"category": category, "score": score, "flagged": True}
+                        )
 
                 # Extract confidence score if available (some implementations may have this)
                 if hasattr(result, "confidence_score"):

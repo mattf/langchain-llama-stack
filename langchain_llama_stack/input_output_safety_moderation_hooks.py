@@ -5,12 +5,16 @@ Simple, efficient implementation with 2 essential hooks:
 1. Input Hook - Check user input safety BEFORE sending to LLM
 2. Output Hook - Check model output safety AFTER LLM generates response
 
-Each hook uses LlamaStack's run_shield API once to get comprehensive safety results.
+Each hook uses LlamaStack's moderations API once to get comprehensive safety results.
 """
 
+import logging
 from typing import Any, Callable, Optional
 
 import requests
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 from langchain_core.runnables import Runnable
 from langchain_core.runnables.config import RunnableConfig
@@ -55,7 +59,7 @@ class SafeLLMWrapper(Runnable):
         else:
             user_input = str(input)
 
-        # 1. INPUT CHECK (safety using run_shield)
+        # 1. INPUT CHECK (safety using moderations API)
         if self.input_hook is not None:
             input_result = self.input_hook(user_input)
             if not input_result.is_safe:
@@ -92,9 +96,12 @@ class SafeLLMWrapper(Runnable):
         except Exception as e:
             return f"Execution failed: {str(e)}"
 
-        # 3. OUTPUT CHECK (safety using run_shield)
+        # 3. OUTPUT CHECK (safety using moderations API)
         if self.output_hook is not None:
             output_result = self.output_hook(model_output)
+            logger.info(
+                f"Output safety check: is_safe={output_result.is_safe}, content='{model_output[:100]}...', violations={len(output_result.violations)}"
+            )
             if not output_result.is_safe:
                 violations = [
                     v.get("reason", "Safety violation")
@@ -115,7 +122,7 @@ class SafeLLMWrapper(Runnable):
         else:
             user_input = str(input)
 
-        # 1. INPUT CHECK (safety using run_shield)
+        # 1. INPUT CHECK (safety using moderations API)
         if self.input_hook is not None:
             input_result = self.input_hook(user_input)
             if not input_result.is_safe:
@@ -151,7 +158,7 @@ class SafeLLMWrapper(Runnable):
         except Exception as e:
             return f"Async execution failed: {str(e)}"
 
-        # 3. OUTPUT CHECK (safety using run_shield)
+        # 3. OUTPUT CHECK (safety using moderations API)
         if self.output_hook is not None:
             output_result = self.output_hook(model_output)
             if not output_result.is_safe:
@@ -165,7 +172,7 @@ class SafeLLMWrapper(Runnable):
 
 
 # =============================================================================
-# The 2 Essential Hooks Using LlamaStack run_shield API
+# The 2 Essential Hooks Using LlamaStack moderations API
 # =============================================================================
 
 
@@ -173,7 +180,7 @@ def create_safety_hook(
     safety_client: Any, hook_type: str = "output", model: Optional[str] = None
 ) -> Callable[[str], SafetyResult]:
     """
-    Create a safety hook using LlamaStack's run_shield API.
+    Create a safety hook using LlamaStack's moderations API.
 
     Args:
         safety_client: LlamaStackSafety client instance
@@ -223,7 +230,7 @@ def create_safe_llm(
     Create a safe LLM with configurable input/output checking.
 
     This is the main factory function that provides clean safety hooks.
-    Each check uses LlamaStack's run_shield once for comprehensive safety checking.
+    Each check uses LlamaStack's moderations once for comprehensive safety checking.
 
     Args:
         llm: The language model to wrap
@@ -250,12 +257,12 @@ def create_safe_llm(
     safe_llm = SafeLLMWrapper(llm, safety_client)
 
     # Set hooks based on configuration
-    if input_check and "prompt-guard" in safety_client.list_shields():
+    if input_check:
         safe_llm.set_input_hook(
-            create_safety_hook(safety_client, "input", "prompt-guard")
+            create_safety_hook(safety_client, "input", model=safety_client.model)
         )
 
-    if output_check and safety_client.model in safety_client.list_shields():
+    if output_check:
         safe_llm.set_output_hook(
             create_safety_hook(safety_client, "output", model=safety_client.model)
         )
