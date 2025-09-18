@@ -37,9 +37,9 @@ class LlamaStackSafety:
     Llama Stack safety and moderation integration.
 
     Key init args — safety params:
-        shield_type: str
-            Name of safety shield to use for safety and moderation\
-             (default: "llama_guard").
+        model: str
+            Name of safety model to use for safety and moderation\
+             (default: "llama-guard").
 
     Key init args — client params:
         base_url: str
@@ -89,7 +89,7 @@ class LlamaStackSafety:
     def __init__(
         self,
         base_url: Optional[str] = None,
-        shield_type: str = "llama-guard",
+        model: str = "ollama/llama-guard3:8b",
         timeout: Optional[float] = 30.0,
         max_retries: int = 2,
     ):
@@ -97,7 +97,7 @@ class LlamaStackSafety:
         self.base_url = base_url or os.environ.get(
             "LLAMA_STACK_BASE_URL", "http://localhost:8321"
         )
-        self.shield_type = shield_type
+        self.model = model
         self.timeout = timeout
         self.max_retries = max_retries
 
@@ -193,53 +193,91 @@ class LlamaStackSafety:
                 )
 
             logger.info("Client initialized successfully")
-            logger.info(f"Making API call with shield_id: {self.shield_type}")
+            logger.info(f"Making API call with model: {self.model}")
 
-            # Use the safety.run_shield method
-            response = self.client.safety.run_shield(
-                shield_id=self.shield_type,
-                messages=[{"content": content, "role": "user"}],
-                params={},  # Required empty params dict
+            # Use the moderations.create method
+            response = self.client.moderations.create(
+                input=content,
+                model=self.model,
                 **kwargs,
             )
 
-            # Parse safety response
+            # Parse OpenAI-compatible moderation response
             is_safe = True
             violations = []
             confidence_score = None
             explanation = None
+            metadata = {}
 
-            # Extract confidence score and explanation if available
-            if hasattr(response, "confidence_score"):
-                confidence_score = response.confidence_score
+            # Extract top-level metadata
+            if hasattr(response, "id"):
+                metadata["id"] = response.id
+            if hasattr(response, "model"):
+                metadata["model"] = response.model
 
-            if hasattr(response, "explanation"):
-                explanation = response.explanation
+            # Process results array
+            if hasattr(response, "results") and response.results:
+                # Use the first result (typically there's only one)
+                result = response.results[0]
 
-            # Check if response indicates a violation
-            if response.violation:
-                is_safe = False
+                # Check if content is flagged
+                is_flagged = getattr(result, "flagged", False)
+                is_safe = not is_flagged
 
-                # Handle violation metadata - it might be dict or object
-                violation_metadata = response.violation.metadata
-                if isinstance(violation_metadata, dict):
-                    violation_type = violation_metadata.get("violation_type", None)
-                    violation_level = violation_metadata.get(
-                        "violation_level", "unknown"
-                    )
-                else:
-                    violation_type = getattr(violation_metadata, "violation_type", None)
-                    violation_level = getattr(
-                        violation_metadata, "violation_level", "unknown"
-                    )
+                # Extract user message if available
+                if hasattr(result, "user_message"):
+                    explanation = result.user_message
 
-                violations.append(
-                    {
-                        "category": violation_type,
-                        "level": violation_level,
-                        "metadata": violation_metadata,
-                    }
-                )
+                # Extract metadata
+                if hasattr(result, "metadata"):
+                    result_metadata = result.metadata
+                    if isinstance(result_metadata, dict):
+                        metadata.update(result_metadata)
+                    else:
+                        # Handle object-style metadata
+                        for attr in dir(result_metadata):
+                            if not attr.startswith("_"):
+                                value = getattr(result_metadata, attr)
+                                if not callable(value):
+                                    metadata[attr] = value
+
+                # Process flagged categories
+                if is_flagged and hasattr(result, "categories"):
+                    categories = result.categories
+                    category_scores = getattr(result, "category_scores", {})
+
+                    if isinstance(categories, dict):
+                        # Dictionary format: {"violence": True, "hate": False, ...}
+                        flagged_categories = [
+                            cat for cat, flagged in categories.items() if flagged
+                        ]
+                    else:
+                        # Object format: result.categories.violence = True
+                        flagged_categories = [
+                            attr
+                            for attr in dir(categories)
+                            if not attr.startswith("_")
+                            and getattr(categories, attr, False)
+                        ]
+
+                    # Create violations from flagged categories
+                    for category in flagged_categories:
+                        score = None
+                        if isinstance(category_scores, dict):
+                            score = category_scores.get(category)
+                        else:
+                            score = getattr(category_scores, category, None)
+
+                        violations.append(
+                            {"category": category, "score": score, "flagged": True}
+                        )
+
+                # Extract confidence score if available (some implementations may have this)
+                if hasattr(result, "confidence_score"):
+                    confidence_score = result.confidence_score
+            else:
+                # Fallback: if no results, treat as safe
+                logger.warning("No results found in moderation response")
 
             # logger.info(f"Final result - is_safe: {is_safe}, violations: {violations}")
 
@@ -281,51 +319,87 @@ class LlamaStackSafety:
             if self.async_client is None:
                 raise ValueError("LlamaStack async client not initialized")
 
-            # Use the AsyncLlamaStackClient.safety.run_shield method
-            response = await self.async_client.safety.run_shield(
-                shield_id=self.shield_type,
-                messages=[{"content": content, "role": "user"}],
-                params={},  # Required empty params dict
+            # Use the AsyncLlamaStackClient.moderations.create method
+            response = await self.async_client.moderations.create(
+                input=content,
+                model=self.model,
                 **kwargs,
             )
 
-            # Parse the response (same logic as sync version)
+            # Parse OpenAI-compatible moderation response (same logic as sync version)
             is_safe = True
             violations = []
             confidence_score = None
             explanation = None
+            metadata = {}
 
-            # Extract confidence score and explanation if available
-            if hasattr(response, "confidence_score"):
-                confidence_score = response.confidence_score
+            # Extract top-level metadata
+            if hasattr(response, "id"):
+                metadata["id"] = response.id
+            if hasattr(response, "model"):
+                metadata["model"] = response.model
 
-            if hasattr(response, "explanation"):
-                explanation = response.explanation
+            # Process results array
+            if hasattr(response, "results") and response.results:
+                # Use the first result (typically there's only one)
+                result = response.results[0]
 
-            # Check if response indicates a violation
-            if response.violation:
-                is_safe = False
+                # Check if content is flagged
+                is_flagged = getattr(result, "flagged", False)
+                is_safe = not is_flagged
 
-                # Handle violation metadata - it might be dict or object
-                violation_metadata = response.violation.metadata
-                if isinstance(violation_metadata, dict):
-                    violation_type = violation_metadata.get("violation_type", None)
-                    violation_level = violation_metadata.get(
-                        "violation_level", "unknown"
-                    )
-                else:
-                    violation_type = getattr(violation_metadata, "violation_type", None)
-                    violation_level = getattr(
-                        violation_metadata, "violation_level", "unknown"
-                    )
+                # Extract user message if available
+                if hasattr(result, "user_message"):
+                    explanation = result.user_message
 
-                violations.append(
-                    {
-                        "category": violation_type,
-                        "level": violation_level,
-                        "metadata": violation_metadata,
-                    }
-                )
+                # Extract metadata
+                if hasattr(result, "metadata"):
+                    result_metadata = result.metadata
+                    if isinstance(result_metadata, dict):
+                        metadata.update(result_metadata)
+                    else:
+                        # Handle object-style metadata
+                        for attr in dir(result_metadata):
+                            if not attr.startswith('_'):
+                                value = getattr(result_metadata, attr)
+                                if not callable(value):
+                                    metadata[attr] = value
+
+                # Process flagged categories
+                if is_flagged and hasattr(result, "categories"):
+                    categories = result.categories
+                    category_scores = getattr(result, "category_scores", {})
+
+                    if isinstance(categories, dict):
+                        # Dictionary format: {"violence": True, "hate": False, ...}
+                        flagged_categories = [cat for cat, flagged in categories.items() if flagged]
+                    else:
+                        # Object format: result.categories.violence = True
+                        flagged_categories = [
+                            attr for attr in dir(categories)
+                            if not attr.startswith('_') and getattr(categories, attr, False)
+                        ]
+
+                    # Create violations from flagged categories
+                    for category in flagged_categories:
+                        score = None
+                        if isinstance(category_scores, dict):
+                            score = category_scores.get(category)
+                        else:
+                            score = getattr(category_scores, category, None)
+
+                        violations.append({
+                            "category": category,
+                            "score": score,
+                            "flagged": True
+                        })
+
+                # Extract confidence score if available (some implementations may have this)
+                if hasattr(result, "confidence_score"):
+                    confidence_score = result.confidence_score
+            else:
+                # Fallback: if no results, treat as safe
+                logger.warning("No results found in async moderation response")
 
             return SafetyResult(
                 is_safe=is_safe,

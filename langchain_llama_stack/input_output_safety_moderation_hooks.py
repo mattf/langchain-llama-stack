@@ -170,7 +170,7 @@ class SafeLLMWrapper(Runnable):
 
 
 def create_safety_hook(
-    safety_client: Any, hook_type: str = "output", shield_type: Optional[str] = None
+    safety_client: Any, hook_type: str = "output", model: Optional[str] = None
 ) -> Callable[[str], SafetyResult]:
     """
     Create a safety hook using LlamaStack's run_shield API.
@@ -178,7 +178,7 @@ def create_safety_hook(
     Args:
         safety_client: LlamaStackSafety client instance
         hook_type: Type of hook - "input" (fails open) or "output" (fails closed)
-        shield_type: Specific shield to use. If None, uses optimal defaults:
+        model: Specific shield to use. If None, uses optimal defaults:
                     - "prompt-guard" for input hooks (prompt injection detection)
                     - "llama-guard" for output hooks (content moderation)
 
@@ -199,14 +199,14 @@ def create_safety_hook(
                 return SafetyResult(
                     is_safe=True,
                     violations=[],
-                    explanation=f"Safety check failed with {shield_type}: {e}",
+                    explanation=f"Safety check failed with {model}: {e}",
                 )
             else:
                 # Output hooks fail closed - block content on error
                 return SafetyResult(
                     is_safe=False,
                     violations=[{"category": "check_error", "reason": str(e)}],
-                    explanation=f"Safety check failed with {shield_type}: {e}",
+                    explanation=f"Safety check failed with {model}: {e}",
                 )
 
     return safety_hook
@@ -255,10 +255,8 @@ def create_safe_llm(
             create_safety_hook(safety_client, "input", "prompt-guard")
         )
 
-    if output_check and safety_client.shield_type in safety_client.list_shields():
+    if output_check and safety_client.model in safety_client.list_shields():
         safe_llm.set_output_hook(
-            create_safety_hook(
-                safety_client, "output", shield_type=safety_client.shield_type
-            )
+            create_safety_hook(safety_client, "output", model=safety_client.model)
         )
     return safe_llm
