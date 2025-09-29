@@ -252,7 +252,8 @@ def create_safe_llm(
         safe_llm = create_safe_llm(llm, safety_client, input_check=False)
 
         # No protection (same as unwrapped LLM)
-        safe_llm = create_safe_llm(llm, safety_client, input_check=False, output_check=False)
+        safe_llm = create_safe_llm(llm, safety_client,
+        input_check=False, output_check=False)
     """
     safe_llm = SafeLLMWrapper(llm, safety_client)
 
