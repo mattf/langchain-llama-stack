@@ -4,6 +4,8 @@ import logging
 import os
 from typing import Any, Optional
 
+from pydantic import BaseModel
+
 # Set up logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -16,8 +18,6 @@ try:
 except ImportError:
     AsyncLlamaStackClient = None  # type: ignore
     LlamaStackClient = None  # type: ignore
-
-from pydantic import BaseModel
 
 
 class SafetyResult(BaseModel):
@@ -148,10 +148,7 @@ class LlamaStackSafety:
             return []
 
     def check_content_safety(
-        self,
-        content: str,
-        content_type: str = "text",
-        **kwargs: Any
+        self, content: str, content_type: str = "text", **kwargs: Any
     ) -> SafetyResult:
         """
         Check content safety using Llama Stack shields.
@@ -275,14 +272,17 @@ class LlamaStackSafety:
                             {"category": category, "score": score, "flagged": True}
                         )
 
-                # Extract confidence score if available (some implementations may have this)
+                # Extract confidence score if available
+                # (some implementations may have this)
                 if hasattr(result, "confidence_score"):
                     confidence_score = result.confidence_score
             else:
                 # Fallback: if no results, treat as safe
                 logger.warning("No results found in moderation response")
 
-            # logger.info(f"Final result - is_safe: {is_safe}, violations: {violations}")
+            # logger.info(f"Final result - is_safe:
+            # {is_safe},
+            # violations: {violations}")
 
             return SafetyResult(
                 is_safe=is_safe,
@@ -399,7 +399,8 @@ class LlamaStackSafety:
                             {"category": category, "score": score, "flagged": True}
                         )
 
-                # Extract confidence score if available (some implementations may have this)
+                # Extract confidence score if available
+                # (some implementations may have this)
                 if hasattr(result, "confidence_score"):
                     confidence_score = result.confidence_score
             else:
