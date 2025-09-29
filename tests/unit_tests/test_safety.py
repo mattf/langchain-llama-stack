@@ -69,7 +69,8 @@ class TestLlamaStackSafety:
         result = safety.check_content_safety("Safe content")
 
         assert result.is_safe is True
-        assert "Content is safe" in str(result.explanation)
+        assert result.explanation is not None
+        assert "Content is safe" in result.explanation
 
     def test_check_content_safety_flagged_content(self) -> None:
         """Test check_content_safety with flagged content."""
@@ -103,6 +104,7 @@ class TestLlamaStackSafety:
 
             # Should return safe with explanation about client not being available
             assert result.is_safe is True
+            assert result.explanation is not None
             assert "LlamaStackClient not available" in result.explanation
 
     def test_check_content_safety_http_error(self) -> None:
@@ -114,6 +116,7 @@ class TestLlamaStackSafety:
 
             # Should return a safe result with error explanation
             assert result.is_safe is True
+            assert result.explanation is not None
             assert "LlamaStackClient not available" in result.explanation
 
     def test_process_safety_result_safe_content(self) -> None:
@@ -149,7 +152,11 @@ class TestLlamaStackSafety:
 
         assert result.is_safe is False
         # 1 - max_score (with tolerance)
-        assert abs(result.confidence_score - 0.1) < 0.01
+        assert result.confidence_score is not None
+        assert (
+            abs(result.confidence_score - 0.1) < 0.01
+        )  # 1 - max_score (with tolerance)
+        assert result.explanation is not None
         assert "violence" in result.explanation
         assert len(result.violations) == 1
         assert result.violations[0]["category"] == "violence"

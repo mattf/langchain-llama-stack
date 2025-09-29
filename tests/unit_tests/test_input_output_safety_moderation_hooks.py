@@ -118,6 +118,7 @@ class TestSafeLLMWrapper:
         wrapper.set_input_hook(unsafe_input_hook)
 
         result = wrapper.invoke("Harmful content")
+        assert isinstance(result, str)
         assert "Input blocked by safety system" in result
 
     def test_invoke_with_unsafe_output(self) -> None:
@@ -144,6 +145,7 @@ class TestSafeLLMWrapper:
         wrapper.set_output_hook(unsafe_output_hook)
 
         result = wrapper.invoke("Hello world")
+        assert isinstance(result, str)
         assert "Output blocked by safety system" in result
 
     @pytest.mark.asyncio

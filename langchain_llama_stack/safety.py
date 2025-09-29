@@ -26,7 +26,7 @@ class SafetyResult(BaseModel):
     is_safe: bool
     violations: list[dict[str, Any]] = []
     confidence_score: Optional[float] = None
-    explanation: Optional[str] = None
+    explanation: str = "No explanation provided"
     metadata: Optional[dict[str, Any]] = None
 
 
