@@ -148,7 +148,10 @@ class LlamaStackSafety:
             return []
 
     def check_content_safety(
-        self, content: str, content_type: str = "text", **kwargs: Any
+        self, 
+        content: str, 
+        content_type: str = "text", 
+        **kwargs: Any
     ) -> SafetyResult:
         """
         Check content safety using Llama Stack shields.

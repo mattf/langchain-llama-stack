@@ -98,7 +98,10 @@ class SafeLLMWrapper(Runnable):
         if self.output_hook is not None:
             output_result = self.output_hook(model_output)
             logger.info(
-                f"Output safety check: is_safe={output_result.is_safe}, content='{model_output[:100]}...', violations={len(output_result.violations)}"
+                "Output safety check: is_safe=%s, content='%s...', violations=%d",
+                output_result.is_safe,
+                model_output[:100],
+                len(output_result.violations)
             )
             if not output_result.is_safe:
                 violations = [
