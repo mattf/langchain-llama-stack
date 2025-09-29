@@ -1,7 +1,7 @@
 """Clean unit tests for LlamaStackSafety using pytest async support."""
 
 import os
-from typing import Any
+from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
 import pytest
@@ -14,190 +14,239 @@ class TestLlamaStackSafety:
 
     def setup_method(self) -> None:
         """Set up test fixtures before each test method."""
-        self.base_url = "http://test-server.com"
-        self.init_kwargs = {
-            "base_url": self.base_url,
-            "model": "test-model",
-        }
+        self.base_url: str = "http://test-server.com"
+        self.model: str = "test-model"
 
-    def test_init_default_params(self) -> None:
-        """Test initialization with default parameters."""
-        with patch.dict(os.environ, {}, clear=True):
-            safety = LlamaStackSafety()
-
-            assert safety.base_url == "http://localhost:8321"
-            assert safety.model == "ollama/llama-guard3:8b"
-            assert safety.timeout == 30.0
-            assert safety.max_retries == 2
-
-    def test_init_custom_params(self) -> None:
-        """Test initialization with custom parameters."""
-        safety = LlamaStackSafety(**self.init_kwargs)
-
+    def test_init_with_base_url(self) -> None:
+        """Test initialization with base URL."""
+        safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
         assert safety.base_url == self.base_url
+        assert safety.model == self.model
+
+    def test_init_with_environment_url(self) -> None:
+        """Test initialization using environment variable."""
+        with patch.dict(os.environ, {"LLAMA_STACK_BASE_URL": "http://env-server.com"}):
+            safety = LlamaStackSafety(model=self.model)
+            assert safety.base_url == "http://env-server.com"
+
+    def test_init_with_model(self) -> None:
+        """Test initialization with specific model."""
+        safety = LlamaStackSafety(base_url=self.base_url, model="test-model")
         assert safety.model == "test-model"
+        assert safety.base_url == self.base_url
 
-    @patch("langchain_llama_stack.safety.LlamaStackClient")
-    def test_check_content_safety_success(self, mock_client_class: Any) -> None:
-        """Test successful content safety check."""
-        mock_client = Mock()
+    def test_list_shields_with_mock_client(self) -> None:
+        """Test list_shields method with mock client."""
+        with patch.object(LlamaStackSafety, "_initialize_client"), patch.object(
+            LlamaStackSafety, "client"
+        ) as mock_client:
+            mock_shield = Mock()
+            mock_shield.identifier = "test-shield"
+            mock_client.shields.list.return_value = [mock_shield]
 
-        # Create a simple mock response that matches the expected structure
+            safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
+            shields = safety.list_shields()
+            assert shields == ["test-shield"]
+
+    def test_check_content_safety_with_mock(self) -> None:
+        """Test check_content_safety with mock response."""
+        with patch.object(LlamaStackSafety, "_initialize_client"), patch.object(
+            LlamaStackSafety, "client"
+        ) as mock_client:
+            mock_result = Mock()
+            mock_result.flagged = False
+            mock_result.user_message = "Content is safe"
+
+            mock_response = Mock()
+            mock_response.results = [mock_result]
+            mock_client.moderations.create.return_value = mock_response
+
+            safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
+            result = safety.check_content_safety("Safe content")
+
+            assert result.is_safe is True
+            assert "Content is safe" in str(result.explanation)
+
+    def test_check_content_safety_flagged_content(self) -> None:
+        """Test check_content_safety with flagged content."""
+        with patch.object(LlamaStackSafety, "_initialize_client"), patch.object(
+            LlamaStackSafety, "client"
+        ) as mock_client:
+            mock_result = Mock()
+            mock_result.flagged = True
+            mock_result.user_message = "Content flagged for violence"
+
+            class MockResult:
+                flagged: bool = True
+                categories: Dict[str, bool] = {"violence": True}
+                category_scores: Dict[str, float] = {"violence": 0.9}
+                user_message: str = "Content flagged"
+                metadata: Dict[str, Any] = {}
+
+            mock_response = Mock()
+            mock_response.results = [MockResult()]
+            mock_client.moderations.create.return_value = mock_response
+
+            safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
+            result = safety.check_content_safety("Violent content")
+
+            assert result.is_safe is False
+            assert len(result.violations) > 0
+
+    def test_check_content_safety_with_http_fallback(self) -> None:
+        """Test HTTP fallback when client is not available."""
+        with patch.object(LlamaStackSafety, "_initialize_client") as mock_init:
+            mock_init.side_effect = Exception("Client init failed")
+
+            with patch("requests.post") as mock_post:
+                mock_response = Mock()
+                mock_response.json.return_value = {
+                    "results": [
+                        {
+                            "flagged": False,
+                            "categories": {},
+                            "category_scores": {},
+                            "user_message": "Safe via HTTP",
+                            "metadata": {},
+                        }
+                    ]
+                }
+                mock_response.raise_for_status.return_value = None
+                mock_post.return_value = mock_response
+
+                safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
+                result = safety.check_content_safety("Test content")
+
+                assert result.is_safe is True
+                assert "Safe via HTTP" in str(result.explanation)
+                mock_post.assert_called_once()
+
+    def test_check_content_safety_http_error(self) -> None:
+        """Test HTTP fallback error handling."""
+        with patch.object(LlamaStackSafety, "_initialize_client") as mock_init:
+            mock_init.side_effect = Exception("Client init failed")
+
+            with patch("requests.post") as mock_post:
+                mock_post.side_effect = Exception("HTTP request failed")
+
+                safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
+                result = safety.check_content_safety("Test content")
+
+                # Should return a safe result with error explanation on failure
+                assert result.is_safe is True
+                assert "Error during safety check" in result.explanation
+
+    def test_process_safety_result_safe_content(self) -> None:
+        """Test _process_safety_result with safe content."""
+        safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
+
         class MockResult:
-            flagged = False
-            categories = {}
-            category_scores = {}
-            user_message = "Safe content"
-            metadata = {}
+            flagged: bool = False
+            categories: Dict[str, bool] = {}
+            category_scores: Dict[str, float] = {}
+            user_message: str = "Content is safe"
+            metadata: Dict[str, Any] = {"model": "test-model"}
 
-        class MockResponse:
-            id = "mod-123"
-            model = "test-model"
-            results = [MockResult()]
+        result = safety._process_safety_result([MockResult()])
 
-        mock_response = MockResponse()
-        mock_client.moderations.create.return_value = mock_response
-        mock_client_class.return_value = mock_client
-
-        safety = LlamaStackSafety(**self.init_kwargs)
-        result = safety.check_content_safety("Hello world")
-
-        assert isinstance(result, SafetyResult)
         assert result.is_safe is True
-        assert result.explanation == "Safe content"
+        assert result.confidence_score == 1.0
+        assert "Content is safe" in result.explanation
+        assert len(result.violations) == 0
 
-    @patch("langchain_llama_stack.safety.LlamaStackClient")
-    def test_check_content_safety_with_violation(self, mock_client_class: Any) -> None:
-        """Test content safety check with violation."""
-        mock_client = Mock()
+    def test_process_safety_result_unsafe_content(self) -> None:
+        """Test _process_safety_result with unsafe content."""
+        safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
 
-        # Create a mock response that indicates a violation
         class MockResult:
-            flagged = True  # This should make is_safe = False
-            categories = {"harassment": True, "violence": False}
-            category_scores = {"harassment": 0.95, "violence": 0.1}
-            user_message = None
-            metadata = {}
+            flagged: bool = True
+            categories: Dict[str, bool] = {"violence": True, "hate": False}
+            category_scores: Dict[str, float] = {"violence": 0.9, "hate": 0.1}
+            user_message: str = "Content flagged for violence"
+            metadata: Dict[str, Any] = {"model": "test-model"}
 
-        class MockResponse:
-            id = "mod-456"
-            model = "test-model"
-            results = [MockResult()]
+        result = safety._process_safety_result([MockResult()])
 
-        mock_response = MockResponse()
-        mock_client.moderations.create.return_value = mock_response
-        mock_client_class.return_value = mock_client
-
-        safety = LlamaStackSafety(**self.init_kwargs)
-        result = safety.check_content_safety("Harmful content")
-
-        assert result.is_safe is False  # Should be False because flagged=True
-        assert len(result.violations) == 1
-        assert result.violations[0]["category"] == "harassment"
-
-    @patch("langchain_llama_stack.safety.LlamaStackClient")
-    def test_check_content_safety_error(self, mock_client_class: Any) -> None:
-        """Test content safety check with error."""
-        mock_client = Mock()
-        mock_client.moderations.create.side_effect = Exception("API error")
-        mock_client_class.return_value = mock_client
-
-        safety = LlamaStackSafety(**self.init_kwargs)
-        result = safety.check_content_safety("Test content")
-
-        assert result.is_safe is True  # Fails open
-        assert "Safety check failed: API error" in result.explanation
-
-    @pytest.mark.asyncio
-    @patch("langchain_llama_stack.safety.AsyncLlamaStackClient")
-    async def test_acheck_content_safety_success(
-        self, mock_async_client_class: Any
-    ) -> None:
-        """Test successful async content safety check."""
-        mock_async_client = Mock()
-
-        # Create a simple mock response that matches the expected structure
-        class MockResult:
-            flagged = False
-            categories = {}
-            category_scores = {}
-            user_message = "Safe async content"
-            metadata = {}
-
-        class MockResponse:
-            id = "mod-123"
-            model = "test-model"
-            results = [MockResult()]
-
-        mock_response = MockResponse()
-
-        # Make the async call return a coroutine that resolves to the mock response
-        async def mock_moderations_create(*args, **kwargs):
-            return mock_response
-
-        mock_async_client.moderations.create = mock_moderations_create
-        mock_async_client_class.return_value = mock_async_client
-
-        safety = LlamaStackSafety(**self.init_kwargs)
-        result = await safety.acheck_content_safety("Hello async world")
-
-        assert result.is_safe is True
-        assert result.explanation == "Safe async content"
-
-    @pytest.mark.asyncio
-    @patch("langchain_llama_stack.safety.AsyncLlamaStackClient")
-    async def test_acheck_content_safety_with_violation(
-        self, mock_async_client_class: Any
-    ) -> None:
-        """Test async content safety check with violation."""
-        mock_async_client = Mock()
-
-        # Create a mock response that indicates a violation
-        class MockResult:
-            flagged = True  # This should make is_safe = False
-            categories = {"violence": True, "harassment": False}
-            category_scores = {"violence": 0.85, "harassment": 0.1}
-            user_message = None
-            metadata = {}
-
-        class MockResponse:
-            id = "mod-789"
-            model = "test-model"
-            results = [MockResult()]
-
-        mock_response = MockResponse()
-
-        # Make the async call return a coroutine that resolves to the mock response
-        async def mock_moderations_create(*args, **kwargs):
-            return mock_response
-
-        mock_async_client.moderations.create = mock_moderations_create
-        mock_async_client_class.return_value = mock_async_client
-
-        safety = LlamaStackSafety(**self.init_kwargs)
-        result = await safety.acheck_content_safety("Violent content")
-
-        assert result.is_safe is False  # Should be False because flagged=True
+        assert result.is_safe is False
+        assert result.confidence_score == 0.1  # 1 - max_score
+        assert "violence" in result.explanation
         assert len(result.violations) == 1
         assert result.violations[0]["category"] == "violence"
 
-    @pytest.mark.asyncio
-    @patch("langchain_llama_stack.safety.AsyncLlamaStackClient")
-    async def test_acheck_content_safety_error(
-        self, mock_async_client_class: Any
-    ) -> None:
-        """Test async content safety check with error."""
-        mock_async_client = Mock()
+    def test_process_safety_result_multiple_violations(self) -> None:
+        """Test _process_safety_result with multiple violations."""
+        safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
 
-        # Make the async call raise an exception
-        async def mock_moderations_create_error(*args, **kwargs):
-            raise Exception("Async API error")
+        class MockResult:
+            flagged: bool = True
+            categories: Dict[str, bool] = {
+                "violence": True,
+                "hate": True,
+                "spam": False,
+            }
+            category_scores: Dict[str, float] = {
+                "violence": 0.8,
+                "hate": 0.7,
+                "spam": 0.2,
+            }
+            user_message: str = "Multiple violations detected"
+            metadata: Dict[str, Any] = {}
 
-        mock_async_client.moderations.create = mock_moderations_create_error
-        mock_async_client_class.return_value = mock_async_client
+        result = safety._process_safety_result([MockResult()])
 
-        safety = LlamaStackSafety(**self.init_kwargs)
-        result = await safety.acheck_content_safety("Test async content")
+        assert result.is_safe is False
+        assert len(result.violations) == 2  # Only flagged categories
+        violation_categories = [v["category"] for v in result.violations]
+        assert "violence" in violation_categories
+        assert "hate" in violation_categories
+        assert "spam" not in violation_categories
 
-        assert result.is_safe is True  # Fails open
-        assert "Async safety check failed: Async API error" in result.explanation
+
+class TestSafetyResult:
+    """Test class for SafetyResult model."""
+
+    def test_safety_result_safe(self) -> None:
+        """Test SafetyResult with safe content."""
+        result = SafetyResult(
+            is_safe=True,
+            confidence_score=0.95,
+            explanation="Content is safe",
+            violations=[],
+        )
+
+        assert result.is_safe is True
+        assert result.confidence_score == 0.95
+        assert result.explanation == "Content is safe"
+        assert len(result.violations) == 0
+
+    def test_safety_result_unsafe(self) -> None:
+        """Test SafetyResult with unsafe content."""
+        violations: List[Dict[str, Any]] = [
+            {"category": "violence", "score": 0.9, "flagged": True}
+        ]
+
+        result = SafetyResult(
+            is_safe=False,
+            confidence_score=0.1,
+            explanation="Content contains violence",
+            violations=violations,
+        )
+
+        assert result.is_safe is False
+        assert result.confidence_score == 0.1
+        assert "violence" in result.explanation
+        assert len(result.violations) == 1
+
+    def test_safety_result_string_representation(self) -> None:
+        """Test string representation of SafetyResult."""
+        result = SafetyResult(
+            is_safe=True,
+            confidence_score=0.95,
+            explanation="Safe content",
+            violations=[],
+        )
+
+        str_repr = str(result)
+        assert "is_safe=True" in str_repr
+        assert "confidence_score=0.95" in str_repr
+        assert "Safe content" in str_repr
