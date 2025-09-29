@@ -101,7 +101,7 @@ class SafeLLMWrapper(Runnable):
                 "Output safety check: is_safe=%s, content='%s...', violations=%d",
                 output_result.is_safe,
                 model_output[:100],
-                len(output_result.violations)
+                len(output_result.violations),
             )
             if not output_result.is_safe:
                 violations = [

@@ -148,9 +148,9 @@ class LlamaStackSafety:
             return []
 
     def check_content_safety(
-        self, 
-        content: str, 
-        content_type: str = "text", 
+        self,
+        content: str,
+        content_type: str = "text",
         **kwargs: Any
     ) -> SafetyResult:
         """
