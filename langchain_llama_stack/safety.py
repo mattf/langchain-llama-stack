@@ -353,7 +353,7 @@ class LlamaStackSafety:
                 is_safe=is_safe,
                 violations=violations,
                 confidence_score=confidence_score,
-                explanation=explanation,
+                explanation=explanation or "Safety check completed",
             )
         except Exception as e:
             logger.error(f"Exception occurred during safety check: {str(e)}")
@@ -478,7 +478,7 @@ class LlamaStackSafety:
                 is_safe=is_safe,
                 violations=violations,
                 confidence_score=confidence_score,
-                explanation=explanation,
+                explanation=explanation or "Async safety check completed",
             )
         except Exception as e:
             # Return safe by default on error, but log the issue
