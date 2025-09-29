@@ -11,13 +11,13 @@ Each hook uses LlamaStack's moderations API once to get comprehensive safety res
 import logging
 from typing import Any, Callable, Optional
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
-
 from langchain_core.runnables import Runnable
 from langchain_core.runnables.config import RunnableConfig
 
 from .safety import SafetyResult
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 class SafeLLMWrapper(Runnable):
@@ -195,7 +195,6 @@ def create_safety_hook(
     # Use optimal shield defaults based on hook type
 
     def safety_hook(content: str) -> SafetyResult:
-
         try:
             return safety_client.check_content_safety(content)
         except Exception as e:

@@ -5,7 +5,6 @@
 try:
     from langchain_llama_stack.safety import LlamaStackSafety
 
-
     # Test safety client creation and basic functionality
     safety = LlamaStackSafety(
         base_url="http://localhost:8321", shield_type="content_safety"

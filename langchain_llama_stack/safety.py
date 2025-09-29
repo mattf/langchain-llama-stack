@@ -171,7 +171,9 @@ class LlamaStackSafety:
             return SafetyResult(
                 is_safe=True,
                 violations=[],
-                explanation="LlamaStackClient not available - install llama-stack-client",
+                explanation=(
+                    "LlamaStackClient not available - install llama-stack-client"
+                ),
             )
 
         logger.info("LlamaStackClient is available")
