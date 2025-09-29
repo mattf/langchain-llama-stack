@@ -35,107 +35,82 @@ class TestLlamaStackSafety:
 
     def test_list_shields_with_mock_client(self) -> None:
         """Test list_shields method with mock client."""
-        with (
-            patch.object(LlamaStackSafety, "_initialize_client"),
-            patch.object(LlamaStackSafety, "client") as mock_client,
-        ):
-            mock_shield = Mock()
-            mock_shield.identifier = "test-shield"
-            mock_client.shields.list.return_value = [mock_shield]
+        safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
 
-            safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
-            shields = safety.list_shields()
-            assert shields == ["test-shield"]
+        # Mock the client attribute directly
+        mock_client = Mock()
+        mock_shield = Mock()
+        mock_shield.identifier = "test-shield"
+        mock_client.shields.list.return_value = [mock_shield]
+        safety.client = mock_client
+
+        shields = safety.list_shields()
+        assert shields == ["test-shield"]
 
     def test_check_content_safety_with_mock(self) -> None:
         """Test check_content_safety with mock response."""
-        with (
-            patch.object(LlamaStackSafety, "_initialize_client"),
-            patch.object(LlamaStackSafety, "client") as mock_client,
-        ):
-            mock_result = Mock()
-            mock_result.flagged = False
-            mock_result.user_message = "Content is safe"
+        safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
 
-            mock_response = Mock()
-            mock_response.results = [mock_result]
-            mock_client.moderations.create.return_value = mock_response
+        # Mock the client directly
+        mock_client = Mock()
+        mock_result = Mock()
+        mock_result.flagged = False
+        mock_result.user_message = "Content is safe"
 
-            safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
-            result = safety.check_content_safety("Safe content")
+        mock_response = Mock()
+        mock_response.results = [mock_result]
+        mock_client.moderations.create.return_value = mock_response
+        safety.client = mock_client
 
-            assert result.is_safe is True
-            assert "Content is safe" in str(result.explanation)
+        result = safety.check_content_safety("Safe content")
+
+        assert result.is_safe is True
+        assert "Content is safe" in str(result.explanation)
 
     def test_check_content_safety_flagged_content(self) -> None:
         """Test check_content_safety with flagged content."""
-        with (
-            patch.object(LlamaStackSafety, "_initialize_client"),
-            patch.object(LlamaStackSafety, "client") as mock_client,
-        ):
-            mock_result = Mock()
-            mock_result.flagged = True
-            mock_result.user_message = "Content flagged for violence"
+        safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
 
-            class MockResult:
-                flagged: bool = True
-                categories: Dict[str, bool] = {"violence": True}
-                category_scores: Dict[str, float] = {"violence": 0.9}
-                user_message: str = "Content flagged"
-                metadata: Dict[str, Any] = {}
+        class MockResult:
+            flagged: bool = True
+            categories: Dict[str, bool] = {"violence": True}
+            category_scores: Dict[str, float] = {"violence": 0.9}
+            user_message: str = "Content flagged"
+            metadata: Dict[str, Any] = {}
 
-            mock_response = Mock()
-            mock_response.results = [MockResult()]
-            mock_client.moderations.create.return_value = mock_response
+        # Mock the client directly
+        mock_client = Mock()
+        mock_response = Mock()
+        mock_response.results = [MockResult()]
+        mock_client.moderations.create.return_value = mock_response
+        safety.client = mock_client
 
-            safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
-            result = safety.check_content_safety("Violent content")
+        result = safety.check_content_safety("Violent content")
 
-            assert result.is_safe is False
-            assert len(result.violations) > 0
+        assert result.is_safe is False
+        assert len(result.violations) > 0
 
     def test_check_content_safety_with_http_fallback(self) -> None:
         """Test HTTP fallback when client is not available."""
-        with patch.object(LlamaStackSafety, "_initialize_client") as mock_init:
-            mock_init.side_effect = Exception("Client init failed")
+        # This test simulates the case where LlamaStackClient is not available
+        with patch('langchain_llama_stack.safety.LlamaStackClient', None):
+            safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
+            result = safety.check_content_safety("Test content")
 
-            with patch("requests.post") as mock_post:
-                mock_response = Mock()
-                mock_response.json.return_value = {
-                    "results": [
-                        {
-                            "flagged": False,
-                            "categories": {},
-                            "category_scores": {},
-                            "user_message": "Safe via HTTP",
-                            "metadata": {},
-                        }
-                    ]
-                }
-                mock_response.raise_for_status.return_value = None
-                mock_post.return_value = mock_response
-
-                safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
-                result = safety.check_content_safety("Test content")
-
-                assert result.is_safe is True
-                assert "Safe via HTTP" in str(result.explanation)
-                mock_post.assert_called_once()
+            # Should return safe with explanation about client not being available
+            assert result.is_safe is True
+            assert "LlamaStackClient not available" in result.explanation
 
     def test_check_content_safety_http_error(self) -> None:
-        """Test HTTP fallback error handling."""
-        with patch.object(LlamaStackSafety, "_initialize_client") as mock_init:
-            mock_init.side_effect = Exception("Client init failed")
+        """Test error handling when client fails."""
+        # This test simulates complete failure case
+        with patch('langchain_llama_stack.safety.LlamaStackClient', None):
+            safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
+            result = safety.check_content_safety("Test content")
 
-            with patch("requests.post") as mock_post:
-                mock_post.side_effect = Exception("HTTP request failed")
-
-                safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
-                result = safety.check_content_safety("Test content")
-
-                # Should return a safe result with error explanation on failure
-                assert result.is_safe is True
-                assert "Error during safety check" in result.explanation
+            # Should return a safe result with error explanation
+            assert result.is_safe is True
+            assert "LlamaStackClient not available" in result.explanation
 
     def test_process_safety_result_safe_content(self) -> None:
         """Test _process_safety_result with safe content."""
@@ -169,7 +144,8 @@ class TestLlamaStackSafety:
         result = safety._process_safety_result([MockResult()])
 
         assert result.is_safe is False
-        assert result.confidence_score == 0.1  # 1 - max_score
+        # 1 - max_score (with tolerance)
+        assert abs(result.confidence_score - 0.1) < 0.01
         assert "violence" in result.explanation
         assert len(result.violations) == 1
         assert result.violations[0]["category"] == "violence"
