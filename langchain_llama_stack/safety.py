@@ -232,14 +232,16 @@ class LlamaStackSafety:
                 if hasattr(result, "metadata"):
                     result_metadata = result.metadata
                     if isinstance(result_metadata, dict):
-                        metadata.update(result_metadata)
+                        # Ensure all values are strings for type safety
+                        str_metadata = {k: str(v) for k, v in result_metadata.items()}
+                        metadata.update(str_metadata)
                     else:
                         # Handle object-style metadata
                         for attr in dir(result_metadata):
                             if not attr.startswith("_"):
                                 value = getattr(result_metadata, attr)
                                 if not callable(value):
-                                    metadata[attr] = value
+                                    metadata[attr] = str(value)
 
                 # Process flagged categories
                 if is_flagged and hasattr(result, "categories"):
@@ -359,14 +361,16 @@ class LlamaStackSafety:
                 if hasattr(result, "metadata"):
                     result_metadata = result.metadata
                     if isinstance(result_metadata, dict):
-                        metadata.update(result_metadata)
+                        # Ensure all values are strings for type safety
+                        str_metadata = {k: str(v) for k, v in result_metadata.items()}
+                        metadata.update(str_metadata)
                     else:
                         # Handle object-style metadata
                         for attr in dir(result_metadata):
                             if not attr.startswith("_"):
                                 value = getattr(result_metadata, attr)
                                 if not callable(value):
-                                    metadata[attr] = value
+                                    metadata[attr] = str(value)
 
                 # Process flagged categories
                 if is_flagged and hasattr(result, "categories"):
