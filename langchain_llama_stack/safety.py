@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Any, Optional
 
-import requests
+from pydantic import BaseModel
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -19,8 +19,6 @@ except ImportError:
     AsyncLlamaStackClient = None  # type: ignore
     LlamaStackClient = None  # type: ignore
 
-from pydantic import BaseModel
-
 
 class SafetyResult(BaseModel):
     """Result from safety check."""
@@ -28,7 +26,7 @@ class SafetyResult(BaseModel):
     is_safe: bool
     violations: list[dict[str, Any]] = []
     confidence_score: Optional[float] = None
-    explanation: Optional[str] = None
+    explanation: str = "No explanation provided"
     metadata: Optional[dict[str, Any]] = None
 
 
@@ -149,6 +147,68 @@ class LlamaStackSafety:
             logger.error(f"Error listing shields: {e}")
             return []
 
+    def _process_safety_result(self, results: list[Any]) -> SafetyResult:
+        """Process safety results from client response."""
+        if not results:
+            return SafetyResult(
+                is_safe=True,
+                confidence_score=1.0,
+                explanation="No results to process",
+                violations=[],
+            )
+
+        result = results[0]
+        is_flagged = getattr(result, "flagged", False)
+        is_safe = not is_flagged
+        violations = []
+
+        # Extract user message if available
+        explanation = getattr(result, "user_message", "Content processed")
+
+        # Calculate confidence score
+        confidence_score = 1.0 if is_safe else 0.1
+
+        # Process violations if content is flagged
+        if is_flagged and hasattr(result, "categories"):
+            categories = result.categories
+            category_scores = getattr(result, "category_scores", {})
+
+            if isinstance(categories, dict):
+                flagged_categories = [
+                    cat for cat, flagged in categories.items() if flagged
+                ]
+            else:
+                flagged_categories = [
+                    attr
+                    for attr in dir(categories)
+                    if not attr.startswith("_") and getattr(categories, attr, False)
+                ]
+
+            for category in flagged_categories:
+                score = None
+                if isinstance(category_scores, dict):
+                    score = category_scores.get(category)
+                else:
+                    score = getattr(category_scores, category, None)
+
+                violations.append(
+                    {"category": category, "score": score, "flagged": True}
+                )
+
+            # Update confidence score based on violations
+            if violations and isinstance(category_scores, dict):
+                max_score = max(
+                    category_scores.get(v["category"], 0) for v in violations
+                )
+                confidence_score = 1.0 - max_score
+
+        return SafetyResult(
+            is_safe=is_safe,
+            confidence_score=confidence_score,
+            explanation=explanation,
+            violations=violations,
+        )
+
     def check_content_safety(
         self, content: str, content_type: str = "text", **kwargs: Any
     ) -> SafetyResult:
@@ -163,7 +223,8 @@ class LlamaStackSafety:
         Returns:
             SafetyResult with safety assessment
         """
-        # logger.info(f"Starting safety check for content: '{content[:50]}...'")
+        # logger.info(f"Starting safety check for content:
+        #  '{content[:50]}...'")
         # logger.info(f"Using shield_type: {self.shield_type}")
         # logger.info(f"Base URL: {self.base_url}")
 
@@ -173,7 +234,9 @@ class LlamaStackSafety:
             return SafetyResult(
                 is_safe=True,
                 violations=[],
-                explanation="LlamaStackClient not available - install llama-stack-client",
+                explanation=(
+                    "LlamaStackClient not available - install llama-stack-client"
+                ),
             )
 
         logger.info("LlamaStackClient is available")
@@ -232,14 +295,16 @@ class LlamaStackSafety:
                 if hasattr(result, "metadata"):
                     result_metadata = result.metadata
                     if isinstance(result_metadata, dict):
-                        metadata.update(result_metadata)
+                        # Ensure all values are strings for type safety
+                        str_metadata = {k: str(v) for k, v in result_metadata.items()}
+                        metadata.update(str_metadata)
                     else:
                         # Handle object-style metadata
                         for attr in dir(result_metadata):
                             if not attr.startswith("_"):
                                 value = getattr(result_metadata, attr)
                                 if not callable(value):
-                                    metadata[attr] = value
+                                    metadata[attr] = str(value)
 
                 # Process flagged categories
                 if is_flagged and hasattr(result, "categories"):
@@ -272,20 +337,23 @@ class LlamaStackSafety:
                             {"category": category, "score": score, "flagged": True}
                         )
 
-                # Extract confidence score if available (some implementations may have this)
+                # Extract confidence score if available
+                # (some implementations may have this)
                 if hasattr(result, "confidence_score"):
                     confidence_score = result.confidence_score
             else:
                 # Fallback: if no results, treat as safe
                 logger.warning("No results found in moderation response")
 
-            # logger.info(f"Final result - is_safe: {is_safe}, violations: {violations}")
+            # logger.info(f"Final result - is_safe:
+            # {is_safe},
+            # violations: {violations}")
 
             return SafetyResult(
                 is_safe=is_safe,
                 violations=violations,
                 confidence_score=confidence_score,
-                explanation=explanation,
+                explanation=explanation or "Safety check completed",
             )
         except Exception as e:
             logger.error(f"Exception occurred during safety check: {str(e)}")
@@ -356,14 +424,16 @@ class LlamaStackSafety:
                 if hasattr(result, "metadata"):
                     result_metadata = result.metadata
                     if isinstance(result_metadata, dict):
-                        metadata.update(result_metadata)
+                        # Ensure all values are strings for type safety
+                        str_metadata = {k: str(v) for k, v in result_metadata.items()}
+                        metadata.update(str_metadata)
                     else:
                         # Handle object-style metadata
                         for attr in dir(result_metadata):
                             if not attr.startswith("_"):
                                 value = getattr(result_metadata, attr)
                                 if not callable(value):
-                                    metadata[attr] = value
+                                    metadata[attr] = str(value)
 
                 # Process flagged categories
                 if is_flagged and hasattr(result, "categories"):
@@ -396,7 +466,8 @@ class LlamaStackSafety:
                             {"category": category, "score": score, "flagged": True}
                         )
 
-                # Extract confidence score if available (some implementations may have this)
+                # Extract confidence score if available
+                # (some implementations may have this)
                 if hasattr(result, "confidence_score"):
                     confidence_score = result.confidence_score
             else:
@@ -407,7 +478,7 @@ class LlamaStackSafety:
                 is_safe=is_safe,
                 violations=violations,
                 confidence_score=confidence_score,
-                explanation=explanation,
+                explanation=explanation or "Async safety check completed",
             )
         except Exception as e:
             # Return safe by default on error, but log the issue

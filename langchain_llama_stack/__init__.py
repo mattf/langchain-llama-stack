@@ -4,9 +4,9 @@ from langchain_llama_stack.chat_models import ChatLlamaStack
 
 # Import safety hooks
 from langchain_llama_stack.input_output_safety_moderation_hooks import (
+    SafeLLMWrapper,
     create_safe_llm,
     create_safety_hook,
-    SafeLLMWrapper,
 )
 from langchain_llama_stack.safety import LlamaStackSafety, SafetyResult
 
