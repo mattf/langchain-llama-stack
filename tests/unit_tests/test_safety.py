@@ -4,8 +4,6 @@ import os
 from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
-import pytest
-
 from langchain_llama_stack.safety import LlamaStackSafety, SafetyResult
 
 
@@ -37,9 +35,10 @@ class TestLlamaStackSafety:
 
     def test_list_shields_with_mock_client(self) -> None:
         """Test list_shields method with mock client."""
-        with patch.object(LlamaStackSafety, "_initialize_client"), patch.object(
-            LlamaStackSafety, "client"
-        ) as mock_client:
+        with (
+            patch.object(LlamaStackSafety, "_initialize_client"),
+            patch.object(LlamaStackSafety, "client") as mock_client,
+        ):
             mock_shield = Mock()
             mock_shield.identifier = "test-shield"
             mock_client.shields.list.return_value = [mock_shield]
@@ -50,9 +49,10 @@ class TestLlamaStackSafety:
 
     def test_check_content_safety_with_mock(self) -> None:
         """Test check_content_safety with mock response."""
-        with patch.object(LlamaStackSafety, "_initialize_client"), patch.object(
-            LlamaStackSafety, "client"
-        ) as mock_client:
+        with (
+            patch.object(LlamaStackSafety, "_initialize_client"),
+            patch.object(LlamaStackSafety, "client") as mock_client,
+        ):
             mock_result = Mock()
             mock_result.flagged = False
             mock_result.user_message = "Content is safe"
@@ -69,9 +69,10 @@ class TestLlamaStackSafety:
 
     def test_check_content_safety_flagged_content(self) -> None:
         """Test check_content_safety with flagged content."""
-        with patch.object(LlamaStackSafety, "_initialize_client"), patch.object(
-            LlamaStackSafety, "client"
-        ) as mock_client:
+        with (
+            patch.object(LlamaStackSafety, "_initialize_client"),
+            patch.object(LlamaStackSafety, "client") as mock_client,
+        ):
             mock_result = Mock()
             mock_result.flagged = True
             mock_result.user_message = "Content flagged for violence"

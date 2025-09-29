@@ -154,60 +154,59 @@ class LlamaStackSafety:
                 is_safe=True,
                 confidence_score=1.0,
                 explanation="No results to process",
-                violations=[]
+                violations=[],
             )
-          
+
         result = results[0]
         is_flagged = getattr(result, "flagged", False)
         is_safe = not is_flagged
         violations = []
-          
+
         # Extract user message if available
         explanation = getattr(result, "user_message", "Content processed")
-          
+
         # Calculate confidence score
         confidence_score = 1.0 if is_safe else 0.1
-          
+
         # Process violations if content is flagged
         if is_flagged and hasattr(result, "categories"):
             categories = result.categories
             category_scores = getattr(result, "category_scores", {})
-              
+
             if isinstance(categories, dict):
                 flagged_categories = [
                     cat for cat, flagged in categories.items() if flagged
                 ]
             else:
                 flagged_categories = [
-                    attr for attr in dir(categories)
+                    attr
+                    for attr in dir(categories)
                     if not attr.startswith("_") and getattr(categories, attr, False)
                 ]
-              
+
             for category in flagged_categories:
                 score = None
                 if isinstance(category_scores, dict):
                     score = category_scores.get(category)
                 else:
                     score = getattr(category_scores, category, None)
-                  
-                violations.append({
-                    "category": category,
-                    "score": score,
-                    "flagged": True
-                })
-              
+
+                violations.append(
+                    {"category": category, "score": score, "flagged": True}
+                )
+
             # Update confidence score based on violations
             if violations and isinstance(category_scores, dict):
                 max_score = max(
                     category_scores.get(v["category"], 0) for v in violations
                 )
                 confidence_score = 1.0 - max_score
-          
+
         return SafetyResult(
             is_safe=is_safe,
             confidence_score=confidence_score,
             explanation=explanation,
-            violations=violations
+            violations=violations,
         )
 
     def check_content_safety(
@@ -224,7 +223,8 @@ class LlamaStackSafety:
         Returns:
             SafetyResult with safety assessment
         """
-        # logger.info(f"Starting safety check for content: '{content[:50]}...'")
+        # logger.info(f"Starting safety check for content:
+        #  '{content[:50]}...'")
         # logger.info(f"Using shield_type: {self.shield_type}")
         # logger.info(f"Base URL: {self.base_url}")
 
