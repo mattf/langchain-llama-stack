@@ -51,14 +51,18 @@ class TestLlamaStackSafety:
         """Test check_content_safety with mock response."""
         safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
 
+        # Create a properly structured mock result
+        class MockResult:
+            flagged: bool = False
+            categories: Dict[str, bool] = {}
+            category_scores: Dict[str, float] = {}
+            user_message: str = "Content is safe"
+            metadata: Dict[str, Any] = {}
+
         # Mock the client directly
         mock_client = Mock()
-        mock_result = Mock()
-        mock_result.flagged = False
-        mock_result.user_message = "Content is safe"
-
         mock_response = Mock()
-        mock_response.results = [mock_result]
+        mock_response.results = [MockResult()]
         mock_client.moderations.create.return_value = mock_response
         safety.client = mock_client
 
@@ -93,7 +97,7 @@ class TestLlamaStackSafety:
     def test_check_content_safety_with_http_fallback(self) -> None:
         """Test HTTP fallback when client is not available."""
         # This test simulates the case where LlamaStackClient is not available
-        with patch('langchain_llama_stack.safety.LlamaStackClient', None):
+        with patch("langchain_llama_stack.safety.LlamaStackClient", None):
             safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
             result = safety.check_content_safety("Test content")
 
@@ -104,7 +108,7 @@ class TestLlamaStackSafety:
     def test_check_content_safety_http_error(self) -> None:
         """Test error handling when client fails."""
         # This test simulates complete failure case
-        with patch('langchain_llama_stack.safety.LlamaStackClient', None):
+        with patch("langchain_llama_stack.safety.LlamaStackClient", None):
             safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
             result = safety.check_content_safety("Test content")
 
