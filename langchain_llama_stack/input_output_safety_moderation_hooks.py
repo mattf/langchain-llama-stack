@@ -11,8 +11,6 @@ Each hook uses LlamaStack's moderations API once to get comprehensive safety res
 import logging
 from typing import Any, Callable, Optional
 
-import requests
-
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 

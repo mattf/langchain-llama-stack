@@ -4,8 +4,6 @@ import logging
 import os
 from typing import Any, Optional
 
-import requests
-
 # Set up logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
