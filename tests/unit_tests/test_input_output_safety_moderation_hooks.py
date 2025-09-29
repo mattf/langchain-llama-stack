@@ -6,9 +6,9 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from langchain_llama_stack.input_output_safety_moderation_hooks import (
-    SafeLLMWrapper,
     create_safe_llm,
     create_safety_hook,
+    SafeLLMWrapper,
 )
 from langchain_llama_stack.safety import LlamaStackSafety, SafetyResult
 
@@ -295,7 +295,9 @@ class TestCreateSafeLLM:
             self.mock_llm, self.mock_safety, input_check=False, output_check=False
         )
 
-        # When both checks are disabled, should still return a SafeLLMWrapper but with no hooks
+        # When both checks are disabled,
+        # should still return a SafeLLMWrapper
+        #  but with no hooks
         assert isinstance(safe_llm, SafeLLMWrapper)
         assert safe_llm.input_hook is None
         assert safe_llm.output_hook is None
