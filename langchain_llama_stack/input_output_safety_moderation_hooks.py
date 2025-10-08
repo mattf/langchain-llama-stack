@@ -11,15 +11,13 @@ Each hook uses LlamaStack's moderations API once to get comprehensive safety res
 import logging
 from typing import Any, Callable, Optional
 
-import requests
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
-
 from langchain_core.runnables import Runnable
 from langchain_core.runnables.config import RunnableConfig
 
 from .safety import SafetyResult
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 class SafeLLMWrapper(Runnable):
@@ -100,7 +98,10 @@ class SafeLLMWrapper(Runnable):
         if self.output_hook is not None:
             output_result = self.output_hook(model_output)
             logger.info(
-                f"Output safety check: is_safe={output_result.is_safe}, content='{model_output[:100]}...', violations={len(output_result.violations)}"
+                "Output safety check: is_safe=%s, content='%s...', violations=%d",
+                output_result.is_safe,
+                model_output[:100],
+                len(output_result.violations),
             )
             if not output_result.is_safe:
                 violations = [
@@ -197,7 +198,6 @@ def create_safety_hook(
     # Use optimal shield defaults based on hook type
 
     def safety_hook(content: str) -> SafetyResult:
-
         try:
             return safety_client.check_content_safety(content)
         except Exception as e:
@@ -252,7 +252,8 @@ def create_safe_llm(
         safe_llm = create_safe_llm(llm, safety_client, input_check=False)
 
         # No protection (same as unwrapped LLM)
-        safe_llm = create_safe_llm(llm, safety_client, input_check=False, output_check=False)
+        safe_llm = create_safe_llm(llm, safety_client,
+        input_check=False, output_check=False)
     """
     safe_llm = SafeLLMWrapper(llm, safety_client)
 
