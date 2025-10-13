@@ -1,8 +1,8 @@
 from typing import Tuple, Type
 
-from langchain_tests.unit_tests import ChatModelUnitTests
+from langchain_llamastack.chat_models import ChatLlamaStack
 
-from langchain_llama_stack.chat_models import ChatLlamaStack
+from langchain_tests.unit_tests import ChatModelUnitTests
 
 
 class TestChatLlamaStackUnit(ChatModelUnitTests):

@@ -1,10 +1,10 @@
-from typing import Type, cast
+from typing import cast, Type
 
 import pytest
 from langchain_core.language_models import BaseChatModel
-from langchain_tests.integration_tests import ChatModelIntegrationTests
 
-from langchain_llama_stack.chat_models import ChatLlamaStack
+from langchain_llamastack.chat_models import ChatLlamaStack
+from langchain_tests.integration_tests import ChatModelIntegrationTests
 
 
 class TestChatLlamaStackIntegration(ChatModelIntegrationTests):

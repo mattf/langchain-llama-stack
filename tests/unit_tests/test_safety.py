@@ -4,7 +4,7 @@ import os
 from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
-from langchain_llama_stack.safety import LlamaStackSafety, SafetyResult
+from langchain_llamastack.safety import LlamaStackSafety, SafetyResult
 
 
 class TestLlamaStackSafety:
@@ -98,7 +98,7 @@ class TestLlamaStackSafety:
     def test_check_content_safety_with_http_fallback(self) -> None:
         """Test HTTP fallback when client is not available."""
         # This test simulates the case where LlamaStackClient is not available
-        with patch("langchain_llama_stack.safety.LlamaStackClient", None):
+        with patch("langchain_llamastack.safety.LlamaStackClient", None):
             safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
             result = safety.check_content_safety("Test content")
 
@@ -110,7 +110,7 @@ class TestLlamaStackSafety:
     def test_check_content_safety_http_error(self) -> None:
         """Test error handling when client fails."""
         # This test simulates complete failure case
-        with patch("langchain_llama_stack.safety.LlamaStackClient", None):
+        with patch("langchain_llamastack.safety.LlamaStackClient", None):
             safety = LlamaStackSafety(base_url=self.base_url, model=self.model)
             result = safety.check_content_safety("Test content")
 
