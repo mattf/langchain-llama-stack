@@ -6,9 +6,9 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from langchain_llamastack.input_output_safety_moderation_hooks import (
+    SafeLLMWrapper,
     create_safe_llm,
     create_safety_hook,
-    SafeLLMWrapper,
 )
 from langchain_llamastack.safety import LlamaStackSafety, SafetyResult
 
