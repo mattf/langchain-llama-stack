@@ -5,12 +5,12 @@ from unittest.mock import Mock
 import pytest
 from langchain_core.messages import AIMessage
 
-from langchain_llama_stack.input_output_safety_moderation_hooks import (
+from langchain_llamastack.input_output_safety_moderation_hooks import (
     SafeLLMWrapper,
     create_safe_llm,
     create_safety_hook,
 )
-from langchain_llama_stack.safety import LlamaStackSafety, SafetyResult
+from langchain_llamastack.safety import LlamaStackSafety, SafetyResult
 
 
 class MockLLM:
